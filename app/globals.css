@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FFFBF5;   /* Ivory */
+  --foreground: #1F2937;   /* Charcoal */
+
+  /* ===== DR Star Design Tokens ===== */
+  --color-primary: #0F766E;        /* Emerald */
+  --color-primary-hover: #0D9488;
+  --color-secondary: #6EE7B7;      /* Mint */
+  --color-accent: #F59E0B;         /* Gold */
+  --color-accent-hover: #D97706;
+
+  --color-surface: #FFFFFF;        /* White */
+  --color-text-secondary: #6B7280; /* Gray */
+  --color-border: #E5E7EB;         /* Soft Gray */
 }
 
 @theme inline {
@@ -10,6 +21,16 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Supaya bisa dipakai sebagai utility class: bg-primary, text-accent, border-border, dst */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-surface: var(--color-surface);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-border: var(--color-border);
 }
 
 body {

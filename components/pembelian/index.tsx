@@ -17,12 +17,12 @@ export default function PembelianEmptyState() {
       className={`${outfit.variable} relative min-h-screen overflow-hidden bg-white font-[family-name:var(--font-outfit),Plus_Jakarta_Sans,sans-serif]`}
     >
       {/* Ambient background */}
-      <div className="pointer-events-none absolute -top-32 -right-32 h-[520px] w-[520px] rounded-full bg-[#2563EB] opacity-[0.06] blur-[110px]" />
-      <div className="pointer-events-none absolute top-1/3 -left-40 h-[480px] w-[480px] rounded-full bg-[#06B6D4] opacity-[0.06] blur-[110px]" />
+      <div className="pointer-events-none absolute -top-32 -right-32 h-[520px] w-[520px] rounded-full bg-[#0F766E] opacity-[0.07] blur-[110px]" />
+      <div className="pointer-events-none absolute top-1/3 -left-40 h-[480px] w-[480px] rounded-full bg-[#F59E0B] opacity-[0.07] blur-[110px]" />
 
       {/* Bottom wave */}
       <svg
-        className="pointer-events-none absolute bottom-0 left-0 w-full text-[#F0F5FF]"
+        className="pointer-events-none absolute bottom-0 left-0 w-full text-[#FFFBF5]"
         viewBox="0 0 1440 220"
         preserveAspectRatio="none"
         aria-hidden="true"
@@ -38,7 +38,7 @@ export default function PembelianEmptyState() {
         <div className="flex items-center justify-center">
           <div className="relative aspect-square w-full max-w-[440px]">
             <Image
-              src="/netralface.png"
+              src="/netralbaru.png"
               alt="Belum ada pembelian"
               fill
               priority
@@ -50,11 +50,11 @@ export default function PembelianEmptyState() {
 
         {/* Right: content */}
         <div className="flex flex-col items-start text-left">
-          <h1 className="text-4xl font-extrabold leading-tight text-[#081B4B] sm:text-5xl">
+          <h1 className="text-4xl font-extrabold leading-tight text-[#1F2937] sm:text-5xl">
             Belum Ada Pembelian
           </h1>
 
-          <p className="mt-5 max-w-md text-base leading-relaxed text-[#64748B]">
+          <p className="mt-5 max-w-md text-base leading-relaxed text-[#6B7280]">
             Sepertinya kamu belum memiliki pembelian tiket. Pastikan nomor HP
             yang kamu masukkan digunakan sebagai informasi kontak saat
             pembelian.
@@ -63,7 +63,7 @@ export default function PembelianEmptyState() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/pembelian/email"
-              className="flex h-[52px] items-center justify-center gap-2 rounded-full border-[1.5px] border-[#2563EB] px-6 text-sm font-bold text-[#2563EB] transition-all duration-200 hover:bg-[#EFF6FF]"
+              className="flex h-[52px] items-center justify-center gap-2 rounded-full border-[1.5px] border-[#0F766E] px-6 text-sm font-bold text-[#0F766E] transition-all duration-200 hover:bg-[#ECFDF5]"
             >
               <Mail size={18} />
               Gunakan Email
@@ -71,18 +71,18 @@ export default function PembelianEmptyState() {
 
             <Link
               href="/pembelian/nomor"
-              className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#2563EB] to-[#06B6D4] px-6 text-sm font-bold text-white shadow-[0_10px_28px_rgba(37,99,235,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:from-[#1D4ED8] hover:to-[#0891B2]"
+              className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]"
             >
               <Phone size={18} />
               Gunakan Nomor HP
             </Link>
           </div>
 
-          <p className="mt-8 text-sm text-[#64748B]">
+          <p className="mt-8 text-sm text-[#6B7280]">
             Butuh bantuan? Silakan{" "}
             <Link
               href="/kontak"
-              className="inline-flex items-center gap-1 font-semibold text-[#06B6D4] transition-all hover:underline"
+              className="inline-flex items-center gap-1 font-semibold text-[#F59E0B] transition-all hover:underline"
             >
               Hubungi Kami
               <ArrowRight size={14} />

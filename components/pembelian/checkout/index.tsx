@@ -24,51 +24,6 @@ import {
   Smile,
 } from "lucide-react";
 
-/**
- * HALAMAN DETAIL PESANAN + METODE PEMBAYARAN — masih DATA DUMMY.
- * ------------------------------------------------------------
- * Cara sambungin ke BE nanti:
- * 1. Ganti `cartItems` dengan data keranjang asli (dikirim dari halaman
- *    pilih tiket sebelumnya — bisa lewat query param, context, atau state
- *    management yang kamu pakai).
- * 2. Attendee form di bawah ini auto-generate 1 form per tiket di cart.
- *    Sambungkan `attendees` state ke payload submit order ke API.
- * 3. Countdown timer sekarang cuma simulasi lokal (15 menit) — idealnya
- *    ambil "waktu kedaluwarsa" dari BE saat order dibuat.
- * 4. Payment methods & paket proteksi di bawah masih representasi generik
- *    (tanpa logo bank/e-wallet asli, harga proteksi masih dummy). Ganti
- *    `protectionPackages` dengan data produk asuransi/proteksi asli dari BE.
- * 5. Tombol "Bayar Sekarang" sekarang cuma redirect langsung ke halaman
- *    sukses (`/pembelian/sukses`) — nanti di sini seharusnya panggil API
- *    create-order/payment dulu, baru redirect setelah BE konfirmasi
- *    pembayaran berhasil (idealnya kirim juga bookingCode/orderId dari
- *    response BE, misalnya lewat `/pembelian/sukses/${orderId}` kalau
- *    halaman sukses-nya nanti dibikin dynamic route).
- *
- * FIX #1 (grid): grid pembungkus 2 kolom di bawah ini pakai `lg:items-start`.
- * Tanpa ini, CSS Grid default nyamain tinggi kedua kolom (align-items:
- * stretch) — begitu kolom kiri berubah tinggi (mis. accordion metode
- * pembayaran dibuka/ditutup), "containing block" sidebar kanan yang sticky
- * ikut berubah, dan browser jadi "snap"/geser posisi sidebar-nya. Dengan
- * `items-start`, tiap kolom cuma setinggi kontennya sendiri, jadi sidebar
- * sticky-nya stabil.
- *
- * FIX #2 (accordion metode pembayaran): sebelumnya konten accordion
- * dirender pakai conditional `{isOpen && (...)}` yang munculin/hilangin
- * DOM secara instan → tinggi kolom kiri berubah mendadak → browser
- * ngelakuin scroll anchoring buat "mempertahankan" posisi elemen yang lagi
- * kelihatan → sidebar kanan yang sticky keliatan geser/loncat walau
- * posisinya sendiri sebenarnya gak salah. Fix-nya dua bagian:
- *   a) sidebar dikasih `[overflow-anchor:none]` biar browser gak coba
- *      "koreksi" posisi scroll gara-gara reflow di kolom kiri.
- *   b) accordion diganti dari conditional render jadi animasi height
- *      pakai trik CSS `grid-template-rows: 0fr -> 1fr` + `overflow-hidden`
- *      di wrapper dalam. Ini animasiin tinggi elemen yang kontennya
- *      `auto` secara smooth tanpa perlu tau tinggi pastinya (gak kayak
- *      trik `max-height` yang sering buggy), jadi perubahan tingginya
- *      terasa natural, bukan snap instan.
- */
-
 const eventInfo = {
   title: "Nama Event Konser",
   schedule: "Tanggal & jam event akan tampil di sini",
@@ -199,7 +154,7 @@ function ProtectionModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F2937]/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -207,20 +162,20 @@ function ProtectionModal({
         className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 sm:p-8"
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-xl font-bold text-[#111827]">
+          <h2 className="text-xl font-bold text-[#1F2937]">
             DR Star Plus Protection
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors duration-300 hover:bg-slate-100 hover:text-[#111827]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9CA3AF] transition-colors duration-300 hover:bg-[#FFFBF5] hover:text-[#1F2937]"
           >
             <X size={18} />
           </button>
         </div>
 
-        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+        <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
           Perlindungan ekstra untuk beli tiket event tanpa cemas. Dapatkan
           perlindungan untuk pembatalan event, kecelakaan, dan kehilangan
           barang.
@@ -234,45 +189,45 @@ function ProtectionModal({
               <div
                 key={pkg.id}
                 className={`flex flex-col rounded-2xl border-2 p-5 transition-colors duration-300 ${
-                  isSelected ? "border-[#2563EB]" : "border-slate-200"
+                  isSelected ? "border-[#0F766E]" : "border-[#E5E7EB]"
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF4FF] text-[#2563EB]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F766E]">
                     <Icon size={18} />
                   </span>
-                  <h3 className="text-sm font-bold text-[#111827]">
+                  <h3 className="text-sm font-bold text-[#1F2937]">
                     {pkg.label}
                   </h3>
                 </div>
 
-                <div className="mt-4 rounded-xl bg-[#F8FAFC] p-3.5">
-                  <p className="text-xs font-semibold text-slate-500">
+                <div className="mt-4 rounded-xl bg-[#FFFBF5] p-3.5">
+                  <p className="text-xs font-semibold text-[#6B7280]">
                     Pertanggungan:
                   </p>
                   <ol className="mt-2 flex flex-col gap-2">
                     {pkg.coverage.map((item, i) => (
-                      <li key={i} className="flex gap-2 text-xs text-slate-600">
-                        <span className="shrink-0 font-semibold text-[#111827]">
+                      <li key={i} className="flex gap-2 text-xs text-[#6B7280]">
+                        <span className="shrink-0 font-semibold text-[#1F2937]">
                           {i + 1}.
                         </span>
                         <span>{item}</span>
                       </li>
                     ))}
                   </ol>
-                  <p className="mt-2 text-xs text-slate-400">
+                  <p className="mt-2 text-xs text-[#9CA3AF]">
                     Benefit lainnya cek di S&amp;K
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  className="mt-3 self-start text-xs font-semibold text-[#2563EB] underline underline-offset-2 hover:text-[#06B6D4]"
+                  className="mt-3 self-start text-xs font-semibold text-[#0F766E] underline underline-offset-2 hover:text-[#F59E0B]"
                 >
                   Syarat Ketentuan
                 </button>
 
-                <p className="mt-4 text-lg font-extrabold text-[#111827]">
+                <p className="mt-4 text-lg font-extrabold text-[#F59E0B]">
                   {formatRupiah(pkg.pricePerTicket)}
                 </p>
 
@@ -281,8 +236,8 @@ function ProtectionModal({
                   onClick={() => onSelect(pkg.id)}
                   className={`mt-3 flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-bold transition-all duration-300 ${
                     isSelected
-                      ? "bg-gradient-to-r from-[#2563EB] to-[#06B6D4] text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)]"
-                      : "border border-[#2563EB] text-[#2563EB] hover:bg-[#EEF4FF]"
+                      ? "bg-[#0F766E] text-white shadow-[0_8px_20px_rgba(15,118,110,0.25)]"
+                      : "border border-[#0F766E] text-[#0F766E] hover:bg-[#ECFDF5]"
                   }`}
                 >
                   {isSelected ? (
@@ -302,7 +257,7 @@ function ProtectionModal({
         <button
           type="button"
           onClick={onSkip}
-          className="mx-auto mt-6 block w-full max-w-xs rounded-full border border-slate-300 py-3 text-center text-sm font-semibold text-slate-600 transition-colors duration-300 hover:bg-slate-50"
+          className="mx-auto mt-6 block w-full max-w-xs rounded-full border border-[#E5E7EB] py-3 text-center text-sm font-semibold text-[#6B7280] transition-colors duration-300 hover:bg-[#FFFBF5]"
         >
           Lanjutkan Tanpa Proteksi
         </button>
@@ -369,16 +324,6 @@ export default function OrderCheckout() {
 
   const canPay = agreeTerms && agreePrivacy && !!selectedMethod;
 
-  /**
-   * Sekarang: langsung redirect ke halaman sukses.
-   * Nanti kalau sudah ada BE, ganti isi function ini jadi:
-   *   1. setIsSubmitting(true)
-   *   2. POST payload (attendees, selectedMethod, selectedProtection, dst)
-   *      ke endpoint create-order/payment
-   *   3. Kalau BE balikin sukses -> router.push ke halaman sukses
-   *      (idealnya bawa orderId/bookingCode dari response BE)
-   *   4. Kalau gagal -> tampilkan error, jangan redirect, setIsSubmitting(false)
-   */
   const handlePay = () => {
     if (!canPay || isSubmitting) return;
     setIsSubmitting(true);
@@ -393,44 +338,44 @@ export default function OrderCheckout() {
           <div className="lg:min-w-0 lg:flex-1">
             <Link
               href="/"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-[#2563EB] transition-colors duration-300 hover:text-[#06B6D4]"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:text-[#F59E0B]"
             >
               <ChevronLeft size={16} />
               Kembali
             </Link>
 
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-3 text-sm text-[#6B7280]">
               Langkah 2 dari 3 &middot;{" "}
-              <span className="font-semibold text-[#111827]">
+              <span className="font-semibold text-[#1F2937]">
                 Detail Pesanan
               </span>
             </p>
 
-            <h1 className="mt-2 text-2xl font-bold text-[#111827] sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-bold text-[#1F2937] sm:text-3xl">
               {eventInfo.title}
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+            <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
               {eventInfo.schedule} &middot; {eventInfo.venue}
             </p>
 
             {/* ===== Form Pengunjung ===== */}
-            <div className="mt-8 rounded-2xl border border-slate-200">
-              <div className="border-b border-slate-200 px-6 py-4">
-                <h2 className="text-base font-bold text-[#111827]">
+            <div className="mt-8 rounded-2xl border border-[#E5E7EB]">
+              <div className="border-b border-[#E5E7EB] px-6 py-4">
+                <h2 className="text-base font-bold text-[#1F2937]">
                   Pengunjung
                 </h2>
               </div>
 
-              <div className="flex flex-col divide-y divide-slate-200">
+              <div className="flex flex-col divide-y divide-[#E5E7EB]">
                 {attendeeSlots.map((slot, index) => (
                   <div key={slot.key} className="px-6 py-6">
-                    <h3 className="text-base font-extrabold text-[#111827]">
+                    <h3 className="text-base font-extrabold text-[#1F2937]">
                       {slot.tierName}
                     </h3>
 
                     <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">
+                        <label className="text-sm font-semibold text-[#1F2937]">
                           Nama Lengkap<span className="text-red-500">*</span>
                         </label>
                         <input
@@ -439,12 +384,12 @@ export default function OrderCheckout() {
                           onChange={(e) =>
                             updateAttendee(index, "namaLengkap", e.target.value)
                           }
-                          className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-[#111827] transition-all duration-200 focus:border-[#2563EB] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.10)] focus:outline-none"
+                          className="mt-2 h-11 w-full rounded-xl border border-[#E5E7EB] px-3.5 text-sm text-[#1F2937] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.10)] focus:outline-none"
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">
+                        <label className="text-sm font-semibold text-[#1F2937]">
                           Email<span className="text-red-500">*</span>
                         </label>
                         <input
@@ -453,16 +398,16 @@ export default function OrderCheckout() {
                           onChange={(e) =>
                             updateAttendee(index, "email", e.target.value)
                           }
-                          className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-[#111827] transition-all duration-200 focus:border-[#2563EB] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.10)] focus:outline-none"
+                          className="mt-2 h-11 w-full rounded-xl border border-[#E5E7EB] px-3.5 text-sm text-[#1F2937] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.10)] focus:outline-none"
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">
+                        <label className="text-sm font-semibold text-[#1F2937]">
                           No. Handphone<span className="text-red-500">*</span>
                         </label>
                         <div className="mt-2 flex items-stretch gap-2">
-                          <span className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 text-sm text-slate-500">
+                          <span className="flex items-center gap-1 rounded-xl border border-[#E5E7EB] px-3 text-sm text-[#6B7280]">
                             ID +62
                           </span>
                           <input
@@ -471,13 +416,13 @@ export default function OrderCheckout() {
                             onChange={(e) =>
                               updateAttendee(index, "noHp", e.target.value)
                             }
-                            className="h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-[#111827] transition-all duration-200 focus:border-[#2563EB] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.10)] focus:outline-none"
+                            className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3.5 text-sm text-[#1F2937] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.10)] focus:outline-none"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">
+                        <label className="text-sm font-semibold text-[#1F2937]">
                           Nomor Identitas (KTP/Passport, dll)
                           <span className="text-red-500">*</span>
                         </label>
@@ -491,18 +436,18 @@ export default function OrderCheckout() {
                               e.target.value
                             )
                           }
-                          className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-[#111827] transition-all duration-200 focus:border-[#2563EB] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.10)] focus:outline-none"
+                          className="mt-2 h-11 w-full rounded-xl border border-[#E5E7EB] px-3.5 text-sm text-[#1F2937] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.10)] focus:outline-none"
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm font-semibold text-[#111827]">
+                        <label className="text-sm font-semibold text-[#1F2937]">
                           Tanggal Lahir<span className="text-red-500">*</span>
                         </label>
                         <div className="relative mt-2">
                           <CalendarDays
                             size={16}
-                            className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400"
+                            className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[#9CA3AF]"
                           />
                           <input
                             type="date"
@@ -514,13 +459,13 @@ export default function OrderCheckout() {
                                 e.target.value
                               )
                             }
-                            className="h-11 w-full rounded-xl border border-slate-200 pr-3.5 pl-10 text-sm text-[#111827] transition-all duration-200 focus:border-[#2563EB] focus:shadow-[0_0_0_4px_rgba(37,99,235,0.10)] focus:outline-none"
+                            className="h-11 w-full rounded-xl border border-[#E5E7EB] pr-3.5 pl-10 text-sm text-[#1F2937] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.10)] focus:outline-none"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-[#111827]">
+                        <p className="text-sm font-semibold text-[#1F2937]">
                           Jenis Kelamin<span className="text-red-500">*</span>
                         </p>
                         <div className="mt-2 flex items-center gap-6">
@@ -528,7 +473,7 @@ export default function OrderCheckout() {
                             (gender) => (
                               <label
                                 key={gender}
-                                className="flex items-center gap-2 text-sm text-[#111827]"
+                                className="flex items-center gap-2 text-sm text-[#1F2937]"
                               >
                                 <input
                                   type="radio"
@@ -543,7 +488,7 @@ export default function OrderCheckout() {
                                       gender
                                     )
                                   }
-                                  className="h-4 w-4 accent-[#2563EB]"
+                                  className="h-4 w-4 accent-[#0F766E]"
                                 />
                                 {gender === "laki-laki"
                                   ? "Laki-laki"
@@ -561,7 +506,7 @@ export default function OrderCheckout() {
 
             {/* ===== Metode Pembayaran ===== */}
             <div className="mt-10">
-              <h2 className="text-lg font-bold text-[#111827]">
+              <h2 className="text-lg font-bold text-[#1F2937]">
                 Metode pembayaran
               </h2>
 
@@ -572,7 +517,7 @@ export default function OrderCheckout() {
                   return (
                     <div
                       key={category.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200"
+                      className="overflow-hidden rounded-2xl border border-[#E5E7EB]"
                     >
                       <button
                         type="button"
@@ -582,21 +527,21 @@ export default function OrderCheckout() {
                         className="flex w-full items-center justify-between px-5 py-4"
                       >
                         <span className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF4FF] text-[#2563EB]">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F766E]">
                             <Icon size={17} />
                           </span>
-                          <span className="text-sm font-bold text-[#111827]">
+                          <span className="text-sm font-bold text-[#1F2937]">
                             {category.label}
                           </span>
                           {category.promo && (
-                            <span className="rounded-full bg-gradient-to-r from-[#2563EB] to-[#06B6D4] px-2.5 py-0.5 text-[11px] font-bold text-white">
+                            <span className="rounded-full bg-[#F59E0B] px-2.5 py-0.5 text-[11px] font-bold text-white">
                               Promo
                             </span>
                           )}
                         </span>
                         <ChevronDown
                           size={18}
-                          className={`text-slate-400 transition-transform duration-300 ${
+                          className={`text-[#9CA3AF] transition-transform duration-300 ${
                             isOpen ? "rotate-180" : ""
                           }`}
                         />
@@ -610,20 +555,20 @@ export default function OrderCheckout() {
                         style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
                       >
                         <div className="overflow-hidden">
-                          <div className="border-t border-slate-200 px-5 py-4">
+                          <div className="border-t border-[#E5E7EB] px-5 py-4">
                             {category.options.map((opt) => (
                               <label
                                 key={opt.id}
-                                className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors duration-200 hover:bg-[#F8FAFC]"
+                                className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors duration-200 hover:bg-[#FFFBF5]"
                               >
                                 <input
                                   type="radio"
                                   name="payment-method"
                                   checked={selectedMethod === opt.id}
                                   onChange={() => setSelectedMethod(opt.id)}
-                                  className="h-4 w-4 accent-[#2563EB]"
+                                  className="h-4 w-4 accent-[#0F766E]"
                                 />
-                                <span className="text-sm text-[#111827]">
+                                <span className="text-sm text-[#1F2937]">
                                   {opt.label}
                                 </span>
                               </label>
@@ -639,11 +584,9 @@ export default function OrderCheckout() {
           </div>
 
           {/* ===== Kolom kanan: ringkasan & pembayaran ===== */}
-          {/* FIX: [overflow-anchor:none] biar browser gak "koreksi" posisi
-              scroll gara-gara reflow di kolom kiri saat accordion buka/tutup. */}
           <div className="lg:sticky lg:top-28 lg:w-[380px] lg:shrink-0 [overflow-anchor:none]">
             {/* Countdown */}
-            <div className="flex items-center gap-2 rounded-t-2xl bg-gradient-to-r from-[#2563EB] to-[#06B6D4] px-5 py-3.5 text-white">
+            <div className="flex items-center gap-2 rounded-t-2xl bg-[#0F766E] px-5 py-3.5 text-white">
               <Clock size={16} />
               <span className="text-sm font-bold">
                 {formatCountdown(secondsLeft)}
@@ -652,25 +595,25 @@ export default function OrderCheckout() {
               <span className="text-sm">Waktu pemesanan tersisa</span>
             </div>
 
-            <div className="rounded-b-2xl border border-t-0 border-slate-200 p-5">
-              <h2 className="text-base font-bold text-[#111827]">
+            <div className="rounded-b-2xl border border-t-0 border-[#E5E7EB] bg-white p-5">
+              <h2 className="text-base font-bold text-[#1F2937]">
                 Ringkasan Pesanan
               </h2>
 
               <div className="mt-4 flex flex-col gap-3">
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex gap-3">
-                    <span className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#2563EB] to-[#06B6D4]" />
+                    <span className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0F766E] to-[#F59E0B]" />
                     <div className="flex flex-1 items-start justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-[#111827]">
+                        <p className="text-sm font-semibold text-[#1F2937]">
                           {item.name}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-[#6B7280]">
                           {formatRupiah(item.price)} × {item.qty}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-[#111827]">
+                      <p className="text-sm font-semibold text-[#1F2937]">
                         {formatRupiah(item.price * item.qty)}
                       </p>
                     </div>
@@ -678,33 +621,33 @@ export default function OrderCheckout() {
                 ))}
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 text-sm">
-                <span className="text-slate-500">
+              <div className="mt-4 flex items-center justify-between border-t border-[#E5E7EB] pt-4 text-sm">
+                <span className="text-[#6B7280]">
                   Subtotal ({totalTickets} tiket)
                 </span>
-                <span className="font-semibold text-[#111827]">
+                <span className="font-semibold text-[#1F2937]">
                   {formatRupiah(subtotal)}
                 </span>
               </div>
 
               <div className="mt-2 flex items-start justify-between text-sm">
-                <span className="text-slate-500">
+                <span className="text-[#6B7280]">
                   Proteksi Pembeli Tiket
                   <br />
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-[#9CA3AF]">
                     (Tidak dapat dikembalikan)
                   </span>
                 </span>
-                <span className="font-semibold text-[#111827]">
+                <span className="font-semibold text-[#1F2937]">
                   {formatRupiah(protectionFee)}
                 </span>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
-                <span className="text-sm font-bold text-[#111827]">
+              <div className="mt-4 flex items-center justify-between border-t border-[#E5E7EB] pt-4">
+                <span className="text-sm font-bold text-[#1F2937]">
                   Grand Total
                 </span>
-                <span className="text-base font-extrabold text-[#111827]">
+                <span className="text-base font-extrabold text-[#F59E0B]">
                   {formatRupiah(grandTotal)}
                 </span>
               </div>
@@ -712,28 +655,28 @@ export default function OrderCheckout() {
               {/* Promo */}
               <button
                 type="button"
-                className="mt-4 flex w-full items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-left transition-colors duration-300 hover:border-[#2563EB]/40"
+                className="mt-4 flex w-full items-center justify-between rounded-xl border border-[#E5E7EB] px-4 py-3 text-left transition-colors duration-300 hover:border-[#0F766E]/40"
               >
-                <span className="flex items-center gap-2 text-sm font-semibold text-[#111827]">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EEF4FF] text-[#2563EB]">
+                <span className="flex items-center gap-2 text-sm font-semibold text-[#1F2937]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F766E]">
                     <Percent size={15} />
                   </span>
                   Makin hemat pakai promo
                 </span>
-                <ChevronRight size={16} className="text-slate-400" />
+                <ChevronRight size={16} className="text-[#9CA3AF]" />
               </button>
 
               {/* Notifikasi WhatsApp */}
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#06B6D4]/20 bg-[#ECFEFF] px-4 py-3.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#06B6D4]">
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#F59E0B]">
                   <MessageCircle size={15} />
                 </span>
                 <span className="flex-1 text-sm">
-                  <span className="font-semibold text-[#111827]">
+                  <span className="font-semibold text-[#1F2937]">
                     Notifikasi WhatsApp
                   </span>
                   <br />
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-[#6B7280]">
                     Saya setuju untuk menerima notifikasi pemesanan tiket ini
                     melalui WhatsApp.
                   </span>
@@ -742,31 +685,31 @@ export default function OrderCheckout() {
                   type="checkbox"
                   checked={whatsappOptIn}
                   onChange={(e) => setWhatsappOptIn(e.target.checked)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-[#06B6D4]"
+                  className="mt-1 h-4 w-4 shrink-0 accent-[#F59E0B]"
                 />
               </label>
 
               {/* Paket Proteksi — dinamis sesuai pilihan modal */}
-              <div className="mt-4 rounded-xl border border-[#2563EB]/20 bg-[#EEF4FF] px-4 py-3.5">
+              <div className="mt-4 rounded-xl border border-[#0F766E]/20 bg-[#ECFDF5] px-4 py-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#2563EB]">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#0F766E]">
                       <ShieldCheck size={15} />
                     </span>
                     <div>
-                      <p className="text-sm font-semibold text-[#111827]">
+                      <p className="text-sm font-semibold text-[#1F2937]">
                         {activeProtection
                           ? activeProtection.label
                           : "Tanpa Proteksi"}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-[#6B7280]">
                         {activeProtection
                           ? `${formatRupiah(activeProtection.pricePerTicket)}/orang`
                           : "Kamu belum memilih perlindungan tambahan"}
                       </p>
                       <button
                         type="button"
-                        className="mt-1 text-xs font-semibold text-[#2563EB] underline underline-offset-2 hover:text-[#06B6D4]"
+                        className="mt-1 text-xs font-semibold text-[#0F766E] underline underline-offset-2 hover:text-[#F59E0B]"
                       >
                         Syarat Ketentuan
                       </button>
@@ -775,14 +718,14 @@ export default function OrderCheckout() {
                   <button
                     type="button"
                     onClick={() => setProtectionModalOpen(true)}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#2563EB] px-3 py-1.5 text-xs font-semibold text-[#2563EB] transition-colors duration-300 hover:bg-white"
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#0F766E] px-3 py-1.5 text-xs font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-white"
                   >
                     <RefreshCw size={12} />
                     Ubah
                   </button>
                 </div>
                 {activeProtection && (
-                  <div className="mt-3 flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#2563EB] to-[#06B6D4] px-3 py-2 text-xs font-semibold text-white">
+                  <div className="mt-3 flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0F766E] to-[#F59E0B] px-3 py-2 text-xs font-semibold text-white">
                     <Check size={14} />
                     Yeay, tiket kamu terlindungi!
                   </div>
@@ -791,33 +734,33 @@ export default function OrderCheckout() {
 
               {/* Agreement */}
               <div className="mt-4 flex flex-col gap-2.5">
-                <label className="flex items-start gap-2.5 text-xs text-slate-500">
+                <label className="flex items-start gap-2.5 text-xs text-[#6B7280]">
                   <input
                     type="checkbox"
                     checked={agreeTerms}
                     onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#2563EB]"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#0F766E]"
                   />
                   Saya setuju dengan{" "}
                   <Link
                     href="/terms"
-                    className="font-semibold text-[#2563EB] hover:text-[#06B6D4]"
+                    className="font-semibold text-[#0F766E] hover:text-[#F59E0B]"
                   >
                     Syarat &amp; Ketentuan
                   </Link>{" "}
                   yang berlaku di DR Star.
                 </label>
-                <label className="flex items-start gap-2.5 text-xs text-slate-500">
+                <label className="flex items-start gap-2.5 text-xs text-[#6B7280]">
                   <input
                     type="checkbox"
                     checked={agreePrivacy}
                     onChange={(e) => setAgreePrivacy(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#2563EB]"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#0F766E]"
                   />
                   Saya menyetujui{" "}
                   <Link
                     href="/privacy"
-                    className="font-semibold text-[#2563EB] hover:text-[#06B6D4]"
+                    className="font-semibold text-[#0F766E] hover:text-[#F59E0B]"
                   >
                     Kebijakan Privasi &amp; Pemrosesan Data
                   </Link>{" "}
@@ -829,7 +772,7 @@ export default function OrderCheckout() {
                 type="button"
                 onClick={handlePay}
                 disabled={!canPay || isSubmitting}
-                className="mt-5 w-full rounded-full py-3 text-sm font-bold text-white transition-all duration-300 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 enabled:bg-gradient-to-r enabled:from-[#2563EB] enabled:to-[#06B6D4] enabled:shadow-[0_10px_26px_rgba(37,99,235,0.28)] enabled:hover:-translate-y-0.5"
+                className="mt-5 w-full rounded-full py-3 text-sm font-bold text-white transition-all duration-300 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] enabled:bg-[#0F766E] enabled:shadow-[0_10px_26px_rgba(15,118,110,0.28)] enabled:hover:-translate-y-0.5 enabled:hover:bg-[#0D9488]"
               >
                 {isSubmitting ? "Memproses..." : "Bayar Sekarang"}
               </button>
