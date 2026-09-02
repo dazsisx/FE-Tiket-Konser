@@ -56,6 +56,8 @@ type AuthData = AuthUser & { token: string };
 
 type ApiListResponse<T> = { success: boolean; total: number; data: T[] };
 type ApiItemResponse<T> = { success: boolean; data: T; message?: string };
+type ApiMessageResponse = { success: boolean; message: string };
+type ApiDataResponse<T> = { success: boolean; message: string; data: T };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
@@ -120,6 +122,55 @@ export async function loginUser(payload: {
 export async function fetchProfile(): Promise<AuthUser> {
   const res = await apiFetch<ApiItemResponse<AuthUser>>("/auth/profile");
   return res.data;
+}
+
+// ===== Forgot Password Flow =====
+
+/** POST /api/auth/forgot-password — kirim kode OTP ke email */
+export async function forgotPassword(payload: {
+  email: string;
+}): Promise<ApiMessageResponse> {
+  return apiFetch<ApiMessageResponse>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** POST /api/auth/verify-reset-otp — verifikasi 6 digit OTP, dapat resetToken */
+export async function verifyResetOtp(payload: {
+  email: string;
+  otp: string;
+}): Promise<{ resetToken: string }> {
+  const res = await apiFetch<ApiDataResponse<{ resetToken: string }>>(
+    "/auth/verify-reset-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+  return res.data;
+}
+
+/** POST /api/auth/resend-reset-otp — kirim ulang kode OTP */
+export async function resendResetOtp(payload: {
+  email: string;
+}): Promise<ApiMessageResponse> {
+  return apiFetch<ApiMessageResponse>("/auth/resend-reset-otp", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** POST /api/auth/reset-password — set kata sandi baru pakai resetToken */
+export async function resetPassword(payload: {
+  email: string;
+  resetToken: string;
+  password: string;
+}): Promise<ApiMessageResponse> {
+  return apiFetch<ApiMessageResponse>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 // ===== Penyimpanan sesi login (localStorage) =====

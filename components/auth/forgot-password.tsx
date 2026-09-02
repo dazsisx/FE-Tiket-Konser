@@ -4,10 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Mail } from "lucide-react";
 import { Outfit } from "next/font/google";
-import { loginUser, saveAuth } from "@/utils/api";
-import { useAuth } from "@/contexts/AuthContext";
+import { forgotPassword } from "@/utils/api";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -15,13 +14,9 @@ const outfit = Outfit({
   variable: "--font-outfit",
 });
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
-  const { login } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,19 +24,25 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    if (!email || !password) {
-      setError("Email dan password wajib diisi.");
+    if (!email) {
+      setError("Alamat email wajib diisi.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Format email tidak valid.");
       return;
     }
 
     try {
       setLoading(true);
-      const data = await loginUser({ email, password });
-      login(data);
-      router.push("/");
+      await forgotPassword({ email });
+      // Simpan email di session storage supaya bisa dipakai di halaman verifikasi
+      sessionStorage.setItem("resetEmail", email);
+      router.push("/auth/verify-otp");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Email atau password salah."
+        err instanceof Error ? err.message : "Gagal mengirim kode OTP, coba lagi."
       );
     } finally {
       setLoading(false);
@@ -52,27 +53,23 @@ export default function LoginPage() {
     <div
       className={`${outfit.variable} relative min-h-screen overflow-hidden bg-[#FFFBF5] font-[family-name:var(--font-outfit),Plus_Jakarta_Sans,sans-serif]`}
     >
-      {/* Subtle ambient background */}
       <div className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full bg-[#0F766E] opacity-[0.07] blur-[110px]" />
       <div className="pointer-events-none absolute -bottom-48 -right-32 h-[600px] w-[600px] rounded-full bg-[#F59E0B] opacity-[0.07] blur-[120px]" />
 
       <div className="relative mx-auto grid min-h-screen max-w-[1400px] grid-cols-1 lg:grid-cols-2">
-        {/* Left: illustration */}
         <div className="hidden items-center justify-center p-16 lg:flex">
-        <div className="relative aspect-[4/5] w-full max-w-[520px]">
-        <Image
-            src="/ballonbaru1.png"
-            alt="Ilustrasi DR Star"
-            fill
-            priority
-            className="object-contain"
-        />
-        </div>
+          <div className="relative aspect-[4/5] w-full max-w-[520px]">
+            <Image
+              src="/ballonbaru1.png"
+              alt="Ilustrasi DR Star"
+              fill
+              priority
+              className="object-contain"
+            />
+          </div>
         </div>
 
-        {/* Right: login card */}
         <div className="flex flex-col items-center justify-center px-6 py-16 sm:px-10">
-          {/* Logo */}
           <Link href="/" className="mb-8 flex shrink-0 items-center">
             <Image
               src="/logobaru.png"
@@ -85,15 +82,26 @@ export default function LoginPage() {
           </Link>
 
           <div className="w-full max-w-[480px] rounded-[24px] border border-[#E5E7EB] bg-white p-8 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-10">
-            {/* Heading */}
-            <h1 className="text-2xl font-bold text-[#1F2937] sm:text-[28px]">
-              Selamat Datang Kembali
+            <Link
+              href="/auth/login"
+              className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-[#6B7280] transition-colors hover:text-[#0F766E]"
+            >
+              <ArrowLeft size={15} />
+              Kembali ke Masuk
+            </Link>
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0F766E]/[0.08] text-[#0F766E]">
+              <Mail size={22} strokeWidth={1.75} />
+            </div>
+
+            <h1 className="mt-4 text-2xl font-bold text-[#1F2937] sm:text-[28px]">
+              Lupa kata sandi?
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
-              Masuk untuk melanjutkan pemesanan konser favoritmu.
+              Masukkan alamat email yang terdaftar. Kami akan mengirimkan kode
+              verifikasi untuk mengatur ulang kata sandi kamu.
             </p>
 
-            {/* Error message */}
             {error && (
               <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                 <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -101,9 +109,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
-              {/* Email */}
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="email"
@@ -121,73 +127,22 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Password */}
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-semibold text-[#1F2937]"
-                >
-                  Kata Sandi
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Masukkan kata sandi kamu"
-                    className="h-[52px] w-full rounded-xl border border-[#E5E7EB] bg-white px-4 pr-12 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={
-                      showPassword ? "Sembunyikan password" : "Tampilkan password"
-                    }
-                    className="absolute top-1/2 right-4 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#0F766E]"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Remember me / Forgot password */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-[#6B7280]">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 cursor-pointer rounded border-[#E5E7EB] accent-[#0F766E]"
-                  />
-                  Ingat Saya
-                </label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm font-semibold text-[#F59E0B] transition-colors hover:text-[#D97706] hover:underline"
-                >
-                  Lupa Kata Sandi?
-                </Link>
-              </div>
-
-              {/* Login button */}
               <button
                 type="submit"
                 disabled={loading}
                 className="mt-2 h-[52px] w-full rounded-xl bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
               >
-                {loading ? "Memproses..." : "Masuk"}
+                {loading ? "Mengirim kode..." : "Kirim Kode OTP"}
               </button>
             </form>
 
-            {/* Register text */}
             <p className="mt-7 text-center text-sm text-[#6B7280]">
-              Belum punya akun?{" "}
+              Ingat kata sandi kamu?{" "}
               <Link
-                href="/auth/register"
+                href="/auth/login"
                 className="font-semibold text-[#F59E0B] transition-all hover:underline"
               >
-                Daftar
+                Masuk
               </Link>
             </p>
           </div>

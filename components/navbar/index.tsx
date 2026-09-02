@@ -50,9 +50,9 @@ export default function Navbar() {
         }`}
       >
         <nav
-          className={`relative flex h-16 items-center gap-4   transition-all duration-500 ${
+          className={`relative flex h-16 items-center gap-4 transition-all duration-500 ${
             scrolled
-              ? "w-[95%] max-w-[1000px] rounded-full border border-[#E5E7EB] bg-white/[0.92] px-6 shadow-[0_4px_24px_rgba(15,118,110,0.10)] backdrop-blur-md"
+              ? "w-[95%] max-w-[1000px] rounded-full bg-white/[0.92] px-6 shadow-[0_4px_24px_rgba(15,118,110,0.10)] backdrop-blur-md"
               : "w-full max-w-[1200px] bg-transparent px-5"
           }`}
         >

@@ -87,7 +87,7 @@ export default function RegisterPage() {
           {/* Logo */}
           <Link href="/" className="mb-8 flex shrink-0 items-center">
             <Image
-              src="/DRStar-baru.png"
+              src="/logobaru.png"
               alt="DR Star"
               width={160}
               height={160}
