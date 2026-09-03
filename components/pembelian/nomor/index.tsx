@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
-import { Phone } from "lucide-react";
+import { ArrowLeft, Phone } from "lucide-react";
 import { Outfit } from "next/font/google";
 
 const outfit = Outfit({
@@ -41,6 +42,14 @@ export default function CekPembelianNomor() {
 
       <div className="relative flex flex-col items-center px-6 pt-20 pb-4 sm:pt-28">
         <div className="w-full max-w-[600px] rounded-[32px] border border-[#E5E7EB] bg-white p-8 shadow-[0_20px_60px_rgba(31,41,55,0.10)] sm:p-10">
+          <Link
+            href="/"
+            className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-[#6B7280] transition-colors hover:text-[#0F766E]"
+          >
+            <ArrowLeft size={15} />
+            Kembali ke Beranda
+          </Link>
+
           <h1 className="text-3xl font-extrabold text-[#1F2937] sm:text-[32px]">
             Pembelian
           </h1>

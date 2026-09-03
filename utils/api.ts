@@ -173,28 +173,58 @@ export async function resetPassword(payload: {
   });
 }
 
-// ===== Penyimpanan sesi login (localStorage) =====
+// ===== Penyimpanan sesi login (localStorage / sessionStorage) =====
 const TOKEN_KEY = "drstar_token";
 const USER_KEY = "drstar_user";
+// Flag ini SELALU disimpan di localStorage (cuma penanda pilihan user,
+// bukan data sensitif) supaya bisa dibaca lagi walau browser sudah ditutup
+// dan dibuka ulang, sebelum kita tahu mau baca token dari storage yang mana.
+const REMEMBER_KEY = "drstar_remember";
 
-/** Simpan token + data user ke localStorage setelah login/register berhasil */
-export function saveAuth(data: AuthData): void {
+/** true = pakai localStorage (persist), false = pakai sessionStorage (per-tab, hilang saat browser ditutup) */
+function isRemembered(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(REMEMBER_KEY) !== "0";
+}
+
+function getStorage(): Storage {
+  return isRemembered() ? window.localStorage : window.sessionStorage;
+}
+
+/**
+ * Simpan token + data user setelah login/register berhasil.
+ * @param remember - true (default): simpan permanen di localStorage, tetap
+ *   login walau browser ditutup dan dibuka lagi ("Ingat Saya" dicentang).
+ *   false: simpan di sessionStorage, otomatis logout begitu tab/browser
+ *   ditutup ("Ingat Saya" tidak dicentang).
+ */
+export function saveAuth(data: AuthData, remember: boolean = true): void {
   if (typeof window === "undefined") return;
   const { token, ...user } = data;
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+
+  localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
+
+  const activeStorage = remember ? localStorage : sessionStorage;
+  const staleStorage = remember ? sessionStorage : localStorage;
+
+  activeStorage.setItem(TOKEN_KEY, token);
+  activeStorage.setItem(USER_KEY, JSON.stringify(user));
+
+  // Bersihkan sisa sesi lama di storage yang tidak lagi dipakai
+  staleStorage.removeItem(TOKEN_KEY);
+  staleStorage.removeItem(USER_KEY);
 }
 
 /** Ambil token JWT yang tersimpan (null kalau belum login / di server) */
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return getStorage().getItem(TOKEN_KEY);
 }
 
-/** Ambil data user yang sedang login dari localStorage */
+/** Ambil data user yang sedang login */
 export function getCurrentUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_KEY);
+  const raw = getStorage().getItem(USER_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthUser;
@@ -208,11 +238,14 @@ export function isLoggedIn(): boolean {
   return getToken() !== null;
 }
 
-/** Hapus sesi login (logout) */
+/** Hapus sesi login (logout) — bersihkan kedua storage supaya tidak ada sisa */
 export function logout(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
+  localStorage.removeItem(REMEMBER_KEY);
 }
 
 /**

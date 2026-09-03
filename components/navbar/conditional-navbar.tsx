@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/navbar";
 
-const HIDDEN_ROUTES = ["/auth/login", "/auth/register", "/terms", "/privacy", "/auth/forgot-password", "/auth/reset-password", "/auth/verify-reset-otp"];
+const HIDDEN_ROUTES = ["/auth/login", "/auth/register", "/terms", "/privacy", "/auth/forgot-password", 
+  "/auth/reset-password", "/auth/verify-otp", "/pembelian/email", "/pembelian/nomor", "/profile"];
 
 export default function ConditionalNavbar() {
   const pathname = usePathname();

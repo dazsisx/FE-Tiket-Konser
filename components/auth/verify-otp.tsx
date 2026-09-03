@@ -4,9 +4,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { Outfit } from "next/font/google";
 import { verifyResetOtp, resendResetOtp } from "@/utils/api";
+import Button from "@/components/ui/Button";
+import Alert from "@/components/ui/Alert";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -132,26 +134,18 @@ export default function VerifyOtpPage() {
 
   return (
     <div
-      className={`${outfit.variable} relative min-h-screen overflow-hidden bg-[#FFFBF5] font-[family-name:var(--font-outfit),Plus_Jakarta_Sans,sans-serif]`}
+      className={`${outfit.variable} relative h-screen overflow-hidden bg-[#FFFBF5] font-[family-name:var(--font-outfit),Plus_Jakarta_Sans,sans-serif]`}
     >
-      <div className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full bg-[#0F766E] opacity-[0.07] blur-[110px]" />
-      <div className="pointer-events-none absolute -bottom-48 -right-32 h-[600px] w-[600px] rounded-full bg-[#F59E0B] opacity-[0.07] blur-[120px]" />
+      <div className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full bg-[#0F766E] opacity-[0.06] blur-[120px]" />
+      <div className="pointer-events-none absolute -bottom-48 -right-32 h-[600px] w-[600px] rounded-full bg-[#F59E0B] opacity-[0.06] blur-[130px]" />
 
-      <div className="relative mx-auto grid min-h-screen max-w-[1400px] grid-cols-1 lg:grid-cols-2">
-        <div className="hidden items-center justify-center p-16 lg:flex">
-          <div className="relative aspect-[4/5] w-full max-w-[520px]">
-            <Image
-              src="/ballonbaru1.png"
-              alt="Ilustrasi DR Star"
-              fill
-              priority
-              className="object-contain"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center px-6 py-16 sm:px-10">
-          <Link href="/" className="mb-8 flex shrink-0 items-center">
+      <div className="relative mx-auto grid h-full max-w-[1400px] grid-cols-1 lg:grid-cols-2">
+        {/* Left: brand panel */}
+        <div className="relative hidden flex-col items-start justify-center gap-8 overflow-hidden p-10 lg:flex xl:p-16">
+          <Link
+            href="/"
+            className="absolute top-10 left-10 flex w-fit shrink-0 items-center xl:top-16 xl:left-16"
+          >
             <Image
               src="/logobaru.png"
               alt="DR Star"
@@ -162,12 +156,46 @@ export default function VerifyOtpPage() {
             />
           </Link>
 
-          <div className="w-full max-w-[480px] rounded-[24px] border border-[#E5E7EB] bg-white p-8 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-10">
+          <div className="relative mx-auto aspect-[4/5] h-[38vh] max-h-[380px] w-auto">
+            <Image
+              src="/ballonbaru1.png"
+              alt="Ilustrasi DR Star"
+              fill
+              priority
+              className="object-contain"
+            />
+          </div>
+
+          <div className="mx-auto max-w-sm">
+            <p className="text-lg font-semibold leading-snug text-[#1F2937]">
+              Hampir selesai, tinggal satu langkah lagi.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
+              Verifikasi email kamu untuk melanjutkan proses pengaturan
+              ulang kata sandi.
+            </p>
+          </div>
+        </div>
+
+        {/* Right: form card */}
+        <div className="flex h-full flex-col items-center justify-center overflow-y-auto px-6 py-6 sm:px-10">
+          <Link href="/" className="mb-6 flex shrink-0 items-center lg:hidden">
+            <Image
+              src="/logobaru.png"
+              alt="DR Star"
+              width={160}
+              height={160}
+              priority
+              className="h-10 w-auto object-contain"
+            />
+          </Link>
+
+          <div className="w-full max-w-[440px] rounded-[24px] border border-[#E5E7EB] bg-white p-6 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-8">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0F766E]/[0.08] text-[#0F766E]">
               <ShieldCheck size={22} strokeWidth={1.75} />
             </div>
 
-            <h1 className="mt-4 text-2xl font-bold text-[#1F2937] sm:text-[28px]">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight text-[#1F2937] sm:text-[28px]">
               Verifikasi email kamu
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
@@ -179,13 +207,12 @@ export default function VerifyOtpPage() {
             </p>
 
             {error && (
-              <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                <span>{error}</span>
+              <div className="mt-5">
+                <Alert variant="error">{error}</Alert>
               </div>
             )}
 
-            <form onSubmit={handleVerify} className="mt-8 flex flex-col gap-6">
+            <form onSubmit={handleVerify} className="mt-6 flex flex-col gap-5">
               <div className="flex justify-between gap-2 sm:gap-3">
                 {digits.map((d, i) => (
                   <input
@@ -204,16 +231,12 @@ export default function VerifyOtpPage() {
                 ))}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="h-[52px] w-full rounded-xl bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-              >
-                {loading ? "Memverifikasi..." : "Verifikasi Kode"}
-              </button>
+              <Button type="submit" loading={loading} loadingText="Memverifikasi...">
+                Verifikasi Kode
+              </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-[#6B7280]">
+            <div className="mt-5 text-center text-sm text-[#6B7280]">
               {cooldown > 0 ? (
                 <span>
                   Kirim ulang kode dalam{" "}

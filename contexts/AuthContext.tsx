@@ -14,7 +14,12 @@ type AuthData = AuthUser & { token: string };
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (data: AuthData) => void;
+  /**
+   * @param remember - true (default): sesi tetap login walau browser
+   *   ditutup dan dibuka lagi. false: sesi hilang begitu tab/browser
+   *   ditutup. Diisi dari status checkbox "Ingat Saya" di halaman login.
+   */
+  login: (data: AuthData, remember?: boolean) => void;
   logout: () => void;
 }
 
@@ -31,8 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (data: AuthData) => {
-    saveAuth(data);
+  const login = (data: AuthData, remember: boolean = true) => {
+    saveAuth(data, remember);
     const { token, ...userData } = data;
     setUser(userData);
   };

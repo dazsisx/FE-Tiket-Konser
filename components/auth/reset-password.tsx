@@ -4,9 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, KeyRound, Lock } from "lucide-react";
 import { Outfit } from "next/font/google";
 import { resetPassword } from "@/utils/api";
+import TextField from "@/components/ui/TextField";
+import Button from "@/components/ui/Button";
+import Alert from "@/components/ui/Alert";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -97,26 +100,18 @@ export default function ResetPasswordPage() {
 
   return (
     <div
-      className={`${outfit.variable} relative min-h-screen overflow-hidden bg-[#FFFBF5] font-[family-name:var(--font-outfit),Plus_Jakarta_Sans,sans-serif]`}
+      className={`${outfit.variable} relative h-screen overflow-hidden bg-[#FFFBF5] font-[family-name:var(--font-outfit),Plus_Jakarta_Sans,sans-serif]`}
     >
-      <div className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full bg-[#0F766E] opacity-[0.07] blur-[110px]" />
-      <div className="pointer-events-none absolute -bottom-48 -right-32 h-[600px] w-[600px] rounded-full bg-[#F59E0B] opacity-[0.07] blur-[120px]" />
+      <div className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full bg-[#0F766E] opacity-[0.06] blur-[120px]" />
+      <div className="pointer-events-none absolute -bottom-48 -right-32 h-[600px] w-[600px] rounded-full bg-[#F59E0B] opacity-[0.06] blur-[130px]" />
 
-      <div className="relative mx-auto grid min-h-screen max-w-[1400px] grid-cols-1 lg:grid-cols-2">
-        <div className="hidden items-center justify-center p-16 lg:flex">
-          <div className="relative aspect-[4/5] w-full max-w-[520px]">
-            <Image
-              src="/ballonbaru1.png"
-              alt="Ilustrasi DR Star"
-              fill
-              priority
-              className="object-contain"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center px-6 py-16 sm:px-10">
-          <Link href="/" className="mb-8 flex shrink-0 items-center">
+      <div className="relative mx-auto grid h-full max-w-[1400px] grid-cols-1 lg:grid-cols-2">
+        {/* Left: brand panel */}
+        <div className="relative hidden flex-col items-start justify-center gap-8 overflow-hidden p-10 lg:flex xl:p-16">
+          <Link
+            href="/"
+            className="absolute top-10 left-10 flex w-fit shrink-0 items-center xl:top-16 xl:left-16"
+          >
             <Image
               src="/logobaru.png"
               alt="DR Star"
@@ -127,7 +122,41 @@ export default function ResetPasswordPage() {
             />
           </Link>
 
-          <div className="w-full max-w-[480px] rounded-[24px] border border-[#E5E7EB] bg-white p-8 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-10">
+          <div className="relative mx-auto aspect-[4/5] h-[38vh] max-h-[380px] w-auto">
+            <Image
+              src="/ballonbaru1.png"
+              alt="Ilustrasi DR Star"
+              fill
+              priority
+              className="object-contain"
+            />
+          </div>
+
+          <div className="mx-auto max-w-sm">
+            <p className="text-lg font-semibold leading-snug text-[#1F2937]">
+              Satu langkah lagi menuju akun kamu.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
+              Buat kata sandi baru yang kuat untuk menjaga keamanan akun DR
+              Star kamu.
+            </p>
+          </div>
+        </div>
+
+        {/* Right: form card */}
+        <div className="flex h-full flex-col items-center justify-center overflow-y-auto px-6 py-6 sm:px-10">
+          <Link href="/" className="mb-6 flex shrink-0 items-center lg:hidden">
+            <Image
+              src="/logobaru.png"
+              alt="DR Star"
+              width={160}
+              height={160}
+              priority
+              className="h-10 w-auto object-contain"
+            />
+          </Link>
+
+          <div className="w-full max-w-[440px] rounded-[24px] border border-[#E5E7EB] bg-white p-6 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-8">
             {success ? (
               <div className="flex flex-col items-center py-6 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0F766E]/[0.08] text-[#0F766E]">
@@ -147,52 +176,58 @@ export default function ResetPasswordPage() {
                   <KeyRound size={22} strokeWidth={1.75} />
                 </div>
 
-                <h1 className="mt-4 text-2xl font-bold text-[#1F2937] sm:text-[28px]">
+                <h1 className="mt-4 text-xl font-bold tracking-tight text-[#1F2937] sm:text-2xl">
                   Buat kata sandi baru
                 </h1>
-                <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
+                <p className="mt-1.5 text-sm leading-relaxed text-[#6B7280]">
                   Kata sandi baru harus berbeda dari kata sandi yang pernah
                   kamu gunakan sebelumnya.
                 </p>
 
                 {error && (
-                  <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
+                  <div className="mt-4">
+                    <Alert variant="error">{error}</Alert>
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
+                <form
+                  onSubmit={handleSubmit}
+                  noValidate
+                  className="mt-5 flex flex-col gap-4"
+                >
                   <div className="flex flex-col gap-1.5">
-                    <label
-                      htmlFor="password"
-                      className="text-sm font-semibold text-[#1F2937]"
-                    >
-                      Kata Sandi Baru
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Buat kata sandi baru"
-                        className="h-[52px] w-full rounded-xl border border-[#E5E7EB] bg-white px-4 pr-12 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={
-                          showPassword ? "Sembunyikan password" : "Tampilkan password"
-                        }
-                        className="absolute top-1/2 right-4 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#0F766E]"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
+                    <TextField
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      size="sm"
+                      label="Kata Sandi Baru"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Buat kata sandi baru"
+                      icon={<Lock size={18} />}
+                      trailing={
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={
+                            showPassword
+                              ? "Sembunyikan password"
+                              : "Tampilkan password"
+                          }
+                          className="text-[#9CA3AF] transition-colors hover:text-[#0F766E] focus-visible:outline-none focus-visible:text-[#0F766E]"
+                        >
+                          {showPassword ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+                      }
+                    />
 
                     {password && (
-                      <div className="mt-1.5 flex items-center gap-2">
+                      <div className="mt-0.5 flex items-center gap-2">
                         <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]">
                           <div
                             className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
@@ -205,7 +240,7 @@ export default function ResetPasswordPage() {
                       </div>
                     )}
 
-                    <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    <ul className="mt-1 grid grid-cols-2 gap-1">
                       {[
                         { key: "length", label: "Minimal 8 karakter" },
                         { key: "uppercase", label: "1 huruf besar" },
@@ -231,22 +266,17 @@ export default function ResetPasswordPage() {
                     </ul>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label
-                      htmlFor="confirmPassword"
-                      className="text-sm font-semibold text-[#1F2937]"
-                    >
-                      Konfirmasi Kata Sandi
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Masukkan ulang kata sandi baru"
-                        className="h-[52px] w-full rounded-xl border border-[#E5E7EB] bg-white px-4 pr-12 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none"
-                      />
+                  <TextField
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    size="sm"
+                    label="Konfirmasi Kata Sandi"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Masukkan ulang kata sandi baru"
+                    icon={<Lock size={18} />}
+                    trailing={
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -255,7 +285,7 @@ export default function ResetPasswordPage() {
                             ? "Sembunyikan password"
                             : "Tampilkan password"
                         }
-                        className="absolute top-1/2 right-4 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#0F766E]"
+                        className="text-[#9CA3AF] transition-colors hover:text-[#0F766E] focus-visible:outline-none focus-visible:text-[#0F766E]"
                       >
                         {showConfirmPassword ? (
                           <EyeOff size={18} />
@@ -263,16 +293,12 @@ export default function ResetPasswordPage() {
                           <Eye size={18} />
                         )}
                       </button>
-                    </div>
-                  </div>
+                    }
+                  />
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-2 h-[52px] w-full rounded-xl bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-                  >
-                    {loading ? "Menyimpan..." : "Atur Ulang Kata Sandi"}
-                  </button>
+                  <Button type="submit" size="sm" loading={loading} loadingText="Menyimpan..." className="mt-1">
+                    Atur Ulang Kata Sandi
+                  </Button>
                 </form>
               </>
             )}
