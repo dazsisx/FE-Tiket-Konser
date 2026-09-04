@@ -50,6 +50,7 @@ export type AuthUser = {
   nama: string;
   email: string;
   role: "admin" | "pelanggan";
+  avatar_url?: string | null;
 };
 
 type AuthData = AuthUser & { token: string };
@@ -122,6 +123,28 @@ export async function loginUser(payload: {
 export async function fetchProfile(): Promise<AuthUser> {
   const res = await apiFetch<ApiItemResponse<AuthUser>>("/auth/profile");
   return res.data;
+}
+
+/** POST /api/auth/avatar — unggah avatar ke Supabase Storage */
+export async function uploadAvatar(file: File): Promise<AuthUser> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await fetch(`${API_BASE_URL}/auth/avatar`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || `Upload avatar gagal (status ${res.status})`);
+  }
+
+  const body = (await res.json()) as ApiItemResponse<AuthUser>;
+  return body.data;
 }
 
 // ===== Forgot Password Flow =====
@@ -213,6 +236,11 @@ export function saveAuth(data: AuthData, remember: boolean = true): void {
   // Bersihkan sisa sesi lama di storage yang tidak lagi dipakai
   staleStorage.removeItem(TOKEN_KEY);
   staleStorage.removeItem(USER_KEY);
+}
+
+export function updateStoredUser(user: AuthUser): void {
+  if (typeof window === "undefined") return;
+  getStorage().setItem(USER_KEY, JSON.stringify(user));
 }
 
 /** Ambil token JWT yang tersimpan (null kalau belum login / di server) */

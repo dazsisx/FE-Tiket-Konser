@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,11 +16,12 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { uploadAvatar } from "@/utils/api";
 
 type TabId = "overview" | "info" | "riwayat" | "keamanan";
 
 const TABS: { id: TabId; label: string; icon: typeof User }[] = [
-  { id: "overview", label: "Overview", icon: LayoutGrid },
+  { id: "overview", label: "Ringkasan", icon: LayoutGrid },
   { id: "info", label: "Info Akun", icon: User },
   { id: "riwayat", label: "Riwayat Pembelian", icon: Ticket },
   { id: "keamanan", label: "Keamanan", icon: ShieldCheck },
@@ -31,9 +32,12 @@ const TABS: { id: TabId; label: string; icon: typeof User }[] = [
 const JUMLAH_TIKET = 0;
 
 export default function ProfileContent() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, logout, updateUser } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -58,6 +62,27 @@ export default function ProfileContent() {
 
   const roleLabel = user.role === "admin" ? "Administrator" : "Pelanggan DR Star";
 
+  const handleAvatarChange = async (file: File | undefined) => {
+    if (!file) return;
+    setAvatarError(null);
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Pilih file gambar yang valid.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Ukuran avatar maksimal 5MB.");
+      return;
+    }
+    try {
+      setAvatarLoading(true);
+      updateUser(await uploadAvatar(file));
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : "Avatar gagal diperbarui.");
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#FFFBF5] px-4 pb-16 pt-8 sm:pt-10">
       <div className="mx-auto max-w-5xl">
@@ -68,9 +93,11 @@ export default function ProfileContent() {
 
           <div className="relative flex flex-col items-center gap-6 text-center sm:flex-row sm:items-center sm:text-left">
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#0F766E] text-2xl font-bold text-white shadow-[0_10px_30px_rgba(15,118,110,0.25)] ring-4 ring-white sm:h-24 sm:w-24 sm:text-3xl">
-                {initials}
-              </div>
+              <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={avatarLoading} className="group relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0F766E] text-2xl font-bold text-white shadow-[0_10px_30px_rgba(15,118,110,0.25)] ring-4 ring-white sm:h-24 sm:w-24 sm:text-3xl">
+                {user.avatar_url ? <img src={user.avatar_url} alt="Avatar profil" className="h-full w-full object-cover" /> : initials}
+                <span className="absolute inset-0 flex items-center justify-center bg-[#1F2937]/65 text-[10px] font-bold opacity-0 transition-opacity group-hover:opacity-100">Ganti foto</span>
+              </button>
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { void handleAvatarChange(e.target.files?.[0]); e.target.value = ""; }} />
               <div>
                 <h1 className="text-2xl font-bold text-[#1F2937] sm:text-3xl">
                   {user.nama}
@@ -91,6 +118,7 @@ export default function ProfileContent() {
               </div>
             </div>
           </div>
+          {avatarError && <p className="mt-3 text-center text-sm font-medium text-red-600">{avatarError}</p>}
         </div>
 
         {/* ===== Tabs ===== */}
@@ -287,7 +315,7 @@ export default function ProfileContent() {
                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border-[1.5px] border-[#DC2626] px-5 py-2.5 text-sm font-semibold text-[#DC2626] transition-all duration-200 hover:bg-red-50"
                   >
                     <LogOut size={16} />
-                    Logout
+                    Keluar
                   </button>
                 </div>
               </div>

@@ -137,7 +137,7 @@ export default function PembayaranSukses() {
 
               <dl className="mt-4 flex flex-col gap-3 text-sm">
                 {[
-                  ["Nama Customer", orderData.customerName],
+                  ["Nama Pelanggan", orderData.customerName],
                   ["Kode Booking", orderData.bookingCode],
                   ["Tanggal Pemesanan", orderData.orderDate],
                   ["Tipe Tiket", orderData.ticketType],

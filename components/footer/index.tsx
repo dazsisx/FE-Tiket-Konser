@@ -60,17 +60,17 @@ function YoutubeIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const exploreLinks = [
-  { label: "Home", href: "/" },
-  { label: "Events", href: "/events" },
-  { label: "Categories", href: "/categories" },
-  { label: "Promotions", href: "/promotions" },
+  { label: "Beranda", href: "/" },
+  { label: "Event", href: "/events" },
+  { label: "Kategori", href: "/categories" },
+  { label: "Promosi", href: "/promotions" },
 ];
 
 const supportLinks = [
-  { label: "Help Center", href: "/help" },
-  { label: "Contact Us", href: "/contact" },
-  { label: "Terms & Conditions", href: "/terms" },
-  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Pusat Bantuan", href: "/help" },
+  { label: "Hubungi Kami", href: "/contact" },
+  { label: "Syarat & Ketentuan", href: "/terms" },
+  { label: "Kebijakan Privasi", href: "/privacy" },
 ];
 
 const socials = [
@@ -106,8 +106,8 @@ export default function Footer() {
 </Link>
 
             <p className="mt-1 text-[15px] leading-relaxed text-[#CBD5E1]">
-              Discover and book your favorite concerts with a fast, secure,
-              and seamless experience.
+              Temukan dan pesan konser favoritmu dengan pengalaman yang cepat,
+              aman, dan nyaman.
             </p>
 
             <div className="mt-7 flex flex-col gap-4">
@@ -126,7 +126,7 @@ export default function Footer() {
                   <Phone size={16} />
                 </span>
                 <div>
-                  <p className="text-xs tracking-wide text-[#9CA3AF]">Phone</p>
+                  <p className="text-xs tracking-wide text-[#9CA3AF]">Telepon</p>
                   <p className="text-sm text-slate-200">+62 812-3456-7890</p>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export default function Footer() {
                   <MapPin size={16} />
                 </span>
                 <div>
-                  <p className="text-xs tracking-wide text-[#9CA3AF]">Location</p>
+                  <p className="text-xs tracking-wide text-[#9CA3AF]">Lokasi</p>
                   <p className="text-sm text-slate-200">Depok, Indonesia</p>
                 </div>
               </div>
@@ -144,9 +144,9 @@ export default function Footer() {
           </div>
 
           {/* Kolom 2 — Explore */}
-          <nav aria-label="Explore">
+          <nav aria-label="Jelajahi">
             <h3 className="font-[family-name:var(--font-outfit)] text-sm font-semibold tracking-wide text-white">
-              Explore
+              Jelajahi
             </h3>
             <ul className="mt-5 flex flex-col gap-3.5">
               {exploreLinks.map((item) => (
@@ -163,9 +163,9 @@ export default function Footer() {
           </nav>
 
           {/* Kolom 3 — Support */}
-          <nav aria-label="Support">
+          <nav aria-label="Bantuan">
             <h3 className="font-[family-name:var(--font-outfit)] text-sm font-semibold tracking-wide text-white">
-              Support
+              Bantuan
             </h3>
             <ul className="mt-5 flex flex-col gap-3.5">
               {supportLinks.map((item) => (
@@ -184,7 +184,7 @@ export default function Footer() {
           {/* Kolom 4 — Follow Us + Download App */}
           <div>
             <h3 className="font-[family-name:var(--font-outfit)] text-sm font-semibold tracking-wide text-white">
-              Follow Us
+              Ikuti Kami
             </h3>
             <div className="mt-5 flex flex-wrap gap-3">
               {socials.map(({ label, href, Icon }) => (
@@ -202,7 +202,7 @@ export default function Footer() {
             </div>
 
             <h4 className="mt-9 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              Download App
+              Unduh Aplikasi
             </h4>
             <div className="mt-4 flex flex-col gap-3">
               <a
@@ -233,25 +233,25 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="flex flex-col items-center justify-between gap-4 text-sm sm:flex-row">
-          <p className="text-slate-500">© 2026 DR Star. All Rights Reserved.</p>
+          <p className="text-slate-500">© 2026 DR Star. Hak cipta dilindungi.</p>
           <div className="flex items-center gap-6">
             <Link
               href="/privacy"
               className="text-slate-500 transition-colors duration-300 hover:text-[#6EE7B7]"
             >
-              Privacy Policy
+              Kebijakan Privasi
             </Link>
             <Link
               href="/terms"
               className="text-slate-500 transition-colors duration-300 hover:text-[#6EE7B7]"
             >
-              Terms of Service
+              Ketentuan Layanan
             </Link>
             <Link
               href="/cookies"
               className="text-slate-500 transition-colors duration-300 hover:text-[#6EE7B7]"
             >
-              Cookies
+              Cookie
             </Link>
           </div>
         </div>

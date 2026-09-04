@@ -30,7 +30,7 @@ const eventInfo = {
   venue: "Nama venue & alamat lengkap akan tampil di sini",
 };
 
-const cartItems = [{ id: "tier-a", name: "Festival A (Standing)", price: 200000, qty: 1 }];
+const cartItems = [{ id: "tier-a", name: "Festival A (Berdiri)", price: 200000, qty: 1 }];
 
 type ProtectionPackage = {
   id: string;
@@ -97,21 +97,21 @@ const emptyAttendee: Attendee = {
 const paymentCategories = [
   {
     id: "credit_card",
-    label: "Credit Card",
+    label: "Kartu Kredit",
     icon: CreditCard,
     options: [{ id: "credit_card", label: "Kartu Kredit / Debit" }],
   },
   {
     id: "virtual_account",
-    label: "Virtual Account",
+    label: "Akun Virtual",
     icon: Landmark,
-    options: [{ id: "va", label: "Virtual Account Bank" }],
+    options: [{ id: "va", label: "Akun Virtual Bank" }],
   },
   {
     id: "wallet",
-    label: "Wallet",
+    label: "Dompet Digital",
     icon: WalletIcon,
-    options: [{ id: "wallet", label: "E-Wallet" }],
+    options: [{ id: "wallet", label: "Dompet Elektronik" }],
   },
   {
     id: "paylater",
@@ -216,7 +216,7 @@ function ProtectionModal({
                     ))}
                   </ol>
                   <p className="mt-2 text-xs text-[#9CA3AF]">
-                    Benefit lainnya cek di S&amp;K
+                    Manfaat lainnya cek di S&amp;K
                   </p>
                 </div>
 
@@ -645,7 +645,7 @@ export default function OrderCheckout() {
 
               <div className="mt-4 flex items-center justify-between border-t border-[#E5E7EB] pt-4">
                 <span className="text-sm font-bold text-[#1F2937]">
-                  Grand Total
+                        Total Keseluruhan
                 </span>
                 <span className="text-base font-extrabold text-[#F59E0B]">
                   {formatRupiah(grandTotal)}

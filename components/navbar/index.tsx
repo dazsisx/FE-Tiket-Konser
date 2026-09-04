@@ -44,6 +44,14 @@ export default function Navbar() {
 
   return (
     <>
+      {profileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu profil"
+          onClick={() => setProfileMenuOpen(false)}
+          className="fixed inset-0 z-40 hidden bg-[#1F2937]/20 backdrop-blur-[1px] md:block"
+        />
+      )}
       <div
         className={`fixed top-0 right-0 left-0 z-50 flex justify-center px-4 transition-all duration-500 ${
           scrolled ? "pt-3" : "pt-4"
@@ -91,7 +99,7 @@ export default function Navbar() {
               href="/pembelian"
               className="text-sm font-semibold text-[#1F2937] transition-colors hover:text-[#6EE7B7]"
             >
-              Pembelian
+              Daftar Keinginan
             </Link>
 
             {isLoading ? (
@@ -102,9 +110,11 @@ export default function Navbar() {
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                   className="flex items-center gap-2 rounded-full border-[1.5px] border-[#E5E7EB] py-1.5 pl-1.5 pr-3 transition-all duration-200 hover:border-[#0F766E]"
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-xs font-bold text-white">
-                    {initials}
-                  </span>
+                  {user.avatar_url ? (
+                    <Image src={user.avatar_url} alt="Avatar" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-xs font-bold text-white">{initials}</span>
+                  )}
                   <span className="max-w-[100px] truncate text-sm font-semibold text-[#1F2937]">
                     {user.nama}
                   </span>
@@ -117,12 +127,27 @@ export default function Navbar() {
                 </button>
 
                 <div
-                  className={`absolute right-0 top-full mt-2 w-52 origin-top-right rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-[0_12px_32px_rgba(15,118,110,0.15)] transition-all duration-200 ${
+                  className={`absolute right-0 top-full z-50 mt-2 w-52 origin-top-right rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-[0_12px_32px_rgba(15,118,110,0.15)] transition-all duration-200 ${
                     profileMenuOpen
                       ? "translate-y-0 scale-100 opacity-100"
                       : "pointer-events-none -translate-y-2 scale-95 opacity-0"
                   }`}
                 >
+                  <Link
+                    href="/profile"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="mb-1 flex items-center gap-3 rounded-xl border-b border-[#E5E7EB] px-3 py-3 transition-colors hover:bg-[#ECFDF5]"
+                  >
+                    {user.avatar_url ? (
+                      <Image src={user.avatar_url} alt="Avatar" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0F766E] text-sm font-bold text-white">{initials}</span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-[#1F2937]">{user.nama}</p>
+                      <p className="truncate text-xs text-[#9CA3AF]">Lihat profil kamu</p>
+                    </div>
+                  </Link>
                   <Link
                     href="/profile"
                     onClick={() => setProfileMenuOpen(false)}
@@ -139,7 +164,7 @@ export default function Navbar() {
                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#DC2626] transition-colors hover:bg-red-50"
                   >
                     <LogOut size={16} />
-                    Logout
+                    Keluar
                   </button>
                 </div>
               </div>
@@ -149,13 +174,13 @@ export default function Navbar() {
                   href="/auth/login"
                   className="rounded-full border-[1.5px] border-[#0F766E] px-5 py-2 text-sm font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#F59E0B]"
                 >
-                  Sign In
+                  Masuk
                 </Link>
                 <Link
                   href="/auth/register"
                   className="rounded-full bg-[#0F766E] px-5 py-2 text-sm font-bold text-white shadow-[0_4px_14px_rgba(15,118,110,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] hover:shadow-[0_10px_26px_rgba(15,118,110,0.30)]"
                 >
-                  Sign Up
+                  Daftar
                 </Link>
               </>
             )}
@@ -165,7 +190,7 @@ export default function Navbar() {
           <button
             className="ml-auto flex flex-col items-center justify-center gap-1.5 p-2 md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
+            aria-label="Buka atau tutup menu"
           >
             <span
               className={`block h-0.5 w-6 rounded-full bg-[#1F2937] transition-all duration-300 ${
@@ -221,7 +246,7 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="block w-full rounded-2xl px-5 py-3.5 text-left text-base font-semibold text-[#1F2937] transition-colors duration-150 hover:bg-[#ECFDF5] hover:text-[#0F766E]"
           >
-            Pembelian
+            Daftar Keinginan
           </Link>
 
           {user && (
@@ -230,9 +255,11 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex w-full items-center gap-2.5 rounded-2xl px-5 py-3.5 text-left text-base font-semibold text-[#1F2937] transition-colors duration-150 hover:bg-[#ECFDF5] hover:text-[#0F766E]"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-xs font-bold text-white">
-                {initials}
-              </span>
+              {user.avatar_url ? (
+                <Image src={user.avatar_url} alt="Avatar" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-xs font-bold text-white">{initials}</span>
+              )}
               Profil Saya
             </Link>
           )}
@@ -247,7 +274,7 @@ export default function Navbar() {
                 className="flex w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-[#DC2626] px-5 py-3 text-center text-base font-semibold text-[#DC2626] transition-all duration-200 hover:bg-red-50"
               >
                 <LogOut size={16} />
-                Logout
+                Keluar
               </button>
             ) : (
               <>
@@ -256,14 +283,14 @@ export default function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full rounded-2xl border-[1.5px] border-[#0F766E] px-5 py-3 text-center text-base font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#F59E0B]"
                 >
-                  Sign In
+                  Masuk
                 </Link>
                 <Link
                   href="/auth/register"
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full rounded-2xl bg-[#0F766E] px-5 py-3 text-center text-base font-bold text-white shadow-[0_10px_26px_rgba(15,118,110,0.30)] transition-all duration-200 hover:bg-[#0D9488]"
                 >
-                  Sign Up
+                  Daftar
                 </Link>
               </>
             )}

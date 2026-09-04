@@ -9,9 +9,9 @@ const eventSlug = "event-1";
 const eventTitle = "Nama Event Konser";
 
 const ticketTiers = [
-  { id: "tier-a", name: "Festival A (Standing)", price: 3750000, available: true },
-  { id: "tier-b", name: "Festival B (Standing)", price: 2750000, available: true },
-  { id: "tier-c", name: "Festival C (Standing)", price: 1750000, available: true },
+  { id: "tier-a", name: "Festival A (Berdiri)", price: 3750000, available: true },
+  { id: "tier-b", name: "Festival B (Berdiri)", price: 2750000, available: true },
+  { id: "tier-c", name: "Festival C (Berdiri)", price: 1750000, available: true },
 ];
 
 function formatRupiah(value: number) {
@@ -85,7 +85,7 @@ export default function TicketSelection() {
               </p>
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-[#9CA3AF]">
-                  Update terakhir {lastUpdated}
+                  Pembaruan terakhir {lastUpdated}
                 </span>
                 <span className="h-4 w-px bg-[#E5E7EB]" />
                 <button
@@ -93,7 +93,7 @@ export default function TicketSelection() {
                   onClick={refresh}
                   className="flex items-center gap-1.5 font-semibold text-[#0F766E] transition-colors duration-300 hover:text-[#F59E0B]"
                 >
-                  Refresh
+                  Perbarui
                   <RotateCw size={14} />
                 </button>
               </div>

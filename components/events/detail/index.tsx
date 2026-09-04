@@ -33,7 +33,7 @@ function PosterPlaceholder() {
         <ImageIcon size={20} strokeWidth={1.5} />
       </div>
       <span className="text-xs font-medium text-[#9CA3AF]">
-        Poster Event &middot; 800×800px
+        Poster Acara &middot; 800×800px
       </span>
     </div>
   );

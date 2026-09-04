@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ArrowRight, ImageIcon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
+  ImageIcon,
+  Music2,
+  Mic2,
+  PartyPopper,
+  Guitar,
+  Sparkles,
+} from "lucide-react";
 import {
   type EventItem,
   getImageUrl,
@@ -18,29 +28,6 @@ import {
  * bergaya sama seperti sebelumnya (dashed border) supaya tetap kelihatan
  * rapi walau admin belum upload gambar.
  */
-
-function useInView<T extends HTMLElement>(threshold = 0.15) {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return { ref, inView };
-}
 
 function HeroSlide({ event }: { event: EventItem }) {
   const posterUrl = getImageUrl(event.poster);
@@ -124,6 +111,72 @@ function EventCard({ event }: { event: EventItem }) {
   );
 }
 
+const categories = [
+  { label: "Konser", icon: Music2, color: "bg-[#ECFDF5] text-[#0F766E]" },
+  { label: "Festival", icon: PartyPopper, color: "bg-[#FFF7ED] text-[#EA580C]" },
+  { label: "Musik Live", icon: Mic2, color: "bg-[#EFF6FF] text-[#2563EB]" },
+  { label: "Akustik", icon: Guitar, color: "bg-[#FEFCE8] text-[#A16207]" },
+];
+
+function SectionHeading({
+  title,
+  icon: Icon,
+  tone,
+}: {
+  title: string;
+  icon: typeof Music2;
+  tone: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${tone} animate-[sectionIcon_3s_ease-in-out_infinite]`}>
+        <Icon size={17} strokeWidth={2.2} />
+      </span>
+      <h2 className="text-xl font-bold text-[#1F2937] sm:text-2xl">{title}</h2>
+    </div>
+  );
+}
+
+function EventRail({
+  title,
+  events,
+  emptyText,
+  icon: Icon,
+  tone,
+}: {
+  title: string;
+  events: EventItem[];
+  emptyText: string;
+  icon: typeof Music2;
+  tone: string;
+}) {
+  return (
+    <div className="mt-12">
+      <div className="flex items-center justify-between">
+        <SectionHeading title={title} icon={Icon} tone={tone} />
+        <Link
+          href="/events"
+          aria-label={`Lihat semua ${title.toLowerCase()}`}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#0F766E] transition-all duration-300 hover:border-transparent hover:bg-[#0F766E] hover:text-white"
+        >
+          <ArrowRight size={18} />
+        </Link>
+      </div>
+      {events.length ? (
+        <div className="mt-5 flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {events.map((event) => (
+            <Link key={event.id} href={`/events/${event.id}`} aria-label={`Lihat detail ${event.nama_event}`}>
+              <EventCard event={event} />
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-[#9CA3AF]">{emptyText}</p>
+      )}
+    </div>
+  );
+}
+
 export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
   const [active, setActive] = useState(0);
   const [heroMounted, setHeroMounted] = useState(false);
@@ -133,10 +186,12 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const { ref: eventsRef, inView: eventsInView } = useInView<HTMLDivElement>();
-
   const heroSlides = events.slice(0, 6);
   const topEvents = events.slice(0, 8);
+  const newestEvents = [...events]
+    .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+    .slice(8, 16);
+  const recommendedEvents = events.slice(16, 24);
   const hasEvents = events.length > 0;
 
   const goTo = (index: number) => {
@@ -148,8 +203,40 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
   const activeSlide = heroSlides[active];
 
   return (
-    <section className="bg-[#FFFBF5] px-4 pt-24 pb-10 sm:px-6 sm:pt-32 lg:px-8">
+    <section className="bg-[#FFFBF5] px-4 pt-24 pb-16 sm:px-6 sm:pt-32 lg:px-8">
       <div className="mx-auto max-w-7xl">
+        {/* ===== Hero pencarian ===== */}
+        <div className="grid items-center gap-8 pb-10 lg:grid-cols-[1fr_420px]">
+          <div className="max-w-2xl">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#F59E0B]">Temukan acara favoritmu</p>
+            <h1 className="mt-3 text-4xl font-extrabold leading-[1.05] tracking-tight text-[#1F2937] sm:text-6xl">
+              Semua keseruan,
+              <span className="block text-[#0F766E]">di satu panggung.</span>
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-[#6B7280]">
+              Temukan konser dan acara musik pilihan untuk mengisi kalender serumu.
+            </p>
+          </div>
+          <div className="relative hidden h-64 overflow-hidden rounded-3xl bg-[#FFF7ED] sm:block">
+            <div className="absolute -right-8 -bottom-12 h-48 w-48 rounded-full bg-[#FCD34D]/40 blur-3xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/ballonbaru1.png" alt="Ilustrasi menemukan event" className="relative mx-auto h-full w-full object-contain animate-[float_5s_ease-in-out_infinite]" />
+          </div>
+        </div>
+
+        {/* ===== Kategori ===== */}
+        <div className="border-y border-[#E5E7EB] py-6">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <span className="mr-2 text-sm font-bold text-[#1F2937]">Jelajahi kategori</span>
+            {categories.map(({ label, icon: Icon, color }) => (
+              <button key={label} type="button" className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm font-semibold text-[#1F2937] transition-all hover:-translate-y-0.5 hover:border-[#0F766E]">
+                <span className={`flex h-7 w-7 items-center justify-center rounded-full ${color}`}><Icon size={15} /></span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* ===== Hero Banner ===== */}
         {hasEvents ? (
           <div
@@ -212,55 +299,15 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
           </div>
         )}
 
-        {/* ===== Top Events ===== */}
-        <div
-          className={`mt-10 transition-all duration-700 ease-out ${
-            heroMounted
-              ? "translate-y-0 opacity-100 delay-150"
-              : "translate-y-6 opacity-0"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-[#1F2937] sm:text-2xl">
-              Top Events
-            </h2>
-            <Link
-              href="/events"
-              aria-label="Lihat semua event"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#0F766E] transition-all duration-300 hover:border-transparent hover:bg-gradient-to-r hover:from-[#0F766E] hover:to-[#F59E0B] hover:text-white"
-            >
-              <ArrowRight size={18} />
-            </Link>
-          </div>
-
-          {hasEvents ? (
-            <div
-              ref={eventsRef}
-              className="mt-5 flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {topEvents.map((event, i) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  aria-label={`Lihat detail ${event.nama_event}`}
-                  style={{ transitionDelay: `${i * 70}ms` }}
-                  className={`shrink-0 rounded-2xl transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] focus-visible:ring-offset-2 ${
-                    eventsInView
-                      ? "translate-y-0 opacity-100"
-                      : "translate-y-5 opacity-0"
-                  }`}
-                >
-                  <EventCard event={event} />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-5 text-sm text-[#9CA3AF]">
-              Belum ada event yang ditambahkan.
-            </p>
-          )}
-        </div>
+        <EventRail title="Event Teratas" icon={Sparkles} tone="bg-[#FFF7ED] text-[#EA580C]" events={topEvents} emptyText="Belum ada event yang ditambahkan." />
+        <EventRail title="Event Terbaru" icon={Mic2} tone="bg-[#EFF6FF] text-[#2563EB]" events={newestEvents} emptyText="Belum ada event terbaru." />
+        <EventRail title="Rekomendasi Untukmu" icon={PartyPopper} tone="bg-[#ECFDF5] text-[#0F766E]" events={recommendedEvents} emptyText="Belum ada rekomendasi event." />
       </div>
+      <style jsx>{`
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+        @keyframes drift { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(6px, -8px) rotate(8deg); } }
+        @keyframes sectionIcon { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-4px) rotate(4deg); } }
+      `}</style>
     </section>
   );
 }

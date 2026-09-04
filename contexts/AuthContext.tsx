@@ -5,6 +5,7 @@ import {
   getCurrentUser,
   getToken,
   saveAuth,
+  updateStoredUser,
   logout as clearAuth,
   type AuthUser,
 } from "@/utils/api";
@@ -21,6 +22,7 @@ interface AuthContextType {
    */
   login: (data: AuthData, remember?: boolean) => void;
   logout: () => void;
+  updateUser: (user: AuthUser) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,8 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/";
   };
 
+  const updateUser = (userData: AuthUser) => {
+    updateStoredUser(userData);
+    setUser(userData);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
