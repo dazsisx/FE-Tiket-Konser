@@ -32,6 +32,22 @@ export type KategoriTiket = {
   sisa_kuota?: number; // cuma ada di response GET /event/:id
 };
 
+export type PesananAdmin = {
+  id: number;
+  user_id: number;
+  event_id: number;
+  kategori_tiket_id: number;
+  jumlah: number;
+  total_harga: string;
+  status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
+  bukti_bayar: string | null;
+  kode_tiket: string | null;
+  created_at?: string;
+  user?: { id: number; nama: string; email: string; no_telepon?: string | null };
+  event?: { id: number; nama_event: string; tanggal: string };
+  kategori_tiket?: { nama_kelas: string; harga: string };
+};
+
 export type EventItem = {
   id: number;
   nama_event: string;
@@ -43,6 +59,34 @@ export type EventItem = {
   status: "buka" | "tutup";
   artis?: Artis;
   kategori_tiket?: KategoriTiket[];
+};
+
+export type AdminDashboard = {
+  ringkasan: {
+    total_pelanggan: number;
+    total_artis: number;
+    total_event: number;
+    event_buka: number;
+    event_tutup: number;
+    total_pesanan: number;
+    pesanan_pending: number;
+    pesanan_lunas: number;
+    pesanan_ditolak: number;
+    total_tiket_terjual: number;
+    total_pendapatan: number;
+  };
+  top_event: Array<EventItem & {
+    kategori_tiket?: Array<Pick<KategoriTiket, "nama_kelas" | "kuota" | "terjual">>;
+  }>;
+  pesanan_menunggu_verifikasi: Array<{
+    id: number;
+    jumlah: number;
+    total_harga: string;
+    status_bayar: string;
+    user?: { nama: string; email: string };
+    event?: { nama_event: string };
+    kategori_tiket?: { nama_kelas: string };
+  }>;
 };
 
 export type AuthUser = {
@@ -81,6 +125,23 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+async function apiFetchForm<T>(path: string, method: "POST" | "PUT", body: FormData): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const responseBody = await res.json().catch(() => null);
+    throw new Error(responseBody?.message || `Request gagal (status ${res.status})`);
+  }
+
+  return res.json();
+}
+
 /** GET /api/event — semua event */
 export async function fetchEvents(): Promise<EventItem[]> {
   const res = await apiFetch<ApiListResponse<EventItem>>("/event");
@@ -90,6 +151,66 @@ export async function fetchEvents(): Promise<EventItem[]> {
 /** GET /api/event/:id — detail satu event (sudah termasuk kategori_tiket + sisa_kuota) */
 export async function fetchEventById(id: string | number): Promise<EventItem> {
   const res = await apiFetch<ApiItemResponse<EventItem>>(`/event/${id}`);
+  return res.data;
+}
+
+/** GET /api/dashboard — ringkasan operasional admin */
+export async function fetchAdminDashboard(): Promise<AdminDashboard> {
+  const res = await apiFetch<ApiItemResponse<AdminDashboard>>("/dashboard");
+  return res.data;
+}
+
+export async function fetchArtists(): Promise<Artis[]> {
+  const res = await apiFetch<ApiListResponse<Artis>>("/artis");
+  return res.data;
+}
+
+export async function fetchAdminOrders(): Promise<PesananAdmin[]> {
+  const res = await apiFetch<ApiListResponse<PesananAdmin>>("/pesanan");
+  return res.data;
+}
+
+export async function saveAdminEvent(id: number | null, body: FormData): Promise<EventItem> {
+  const path = id === null ? "/event" : `/event/${id}`;
+  const method = id === null ? "POST" : "PUT";
+  const res = await apiFetchForm<ApiItemResponse<EventItem>>(path, method, body);
+  return res.data;
+}
+
+export async function deleteAdminEvent(id: number): Promise<void> {
+  await apiFetch<ApiMessageResponse>(`/event/${id}`, { method: "DELETE" });
+}
+
+export async function setAdminEventStatus(id: number, status: "buka" | "tutup"): Promise<EventItem> {
+  const action = status === "buka" ? "buka" : "tutup";
+  const res = await apiFetch<ApiItemResponse<EventItem>>(`/event/${id}/${action}`, { method: "PATCH" });
+  return res.data;
+}
+
+export async function saveTicketCategory(
+  eventId: number,
+  categoryId: number | null,
+  payload: { nama_kelas: string; harga: number; kuota: number }
+): Promise<KategoriTiket> {
+  const path = categoryId === null ? "/kategori-tiket" : `/kategori-tiket/${categoryId}`;
+  const method = categoryId === null ? "POST" : "PUT";
+  const body = categoryId === null ? { event_id: eventId, ...payload } : payload;
+  const res = await apiFetch<ApiItemResponse<KategoriTiket>>(path, {
+    method,
+    body: JSON.stringify(body),
+  });
+  return res.data;
+}
+
+export async function deleteTicketCategory(id: number): Promise<void> {
+  await apiFetch<ApiMessageResponse>(`/kategori-tiket/${id}`, { method: "DELETE" });
+}
+
+export async function verifyAdminOrder(id: number, action: "setujui" | "tolak"): Promise<PesananAdmin> {
+  const res = await apiFetch<ApiItemResponse<PesananAdmin>>(`/pesanan/${id}/verifikasi`, {
+    method: "PATCH",
+    body: JSON.stringify({ aksi: action }),
+  });
   return res.data;
 }
 

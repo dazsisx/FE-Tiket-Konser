@@ -130,7 +130,7 @@ export default function Navbar() {
                   className={`absolute right-0 top-full z-50 mt-2 w-52 origin-top-right rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-[0_12px_32px_rgba(15,118,110,0.15)] transition-all duration-200 ${
                     profileMenuOpen
                       ? "translate-y-0 scale-100 opacity-100"
-                      : "pointer-events-none -translate-y-2 scale-95 opacity-0"
+                      : "pointer-events-none -translate-y-2 scnpale-95 opacity-0"
                   }`}
                 >
                   <Link

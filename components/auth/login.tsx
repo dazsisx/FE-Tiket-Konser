@@ -19,7 +19,7 @@ const outfit = Outfit({
   variable: "--font-outfit",
 });
 
-export default function LoginPage() {
+export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }) {
   const router = useRouter();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -41,11 +41,14 @@ export default function LoginPage() {
     try {
       setLoading(true);
       const data = await loginUser({ email, password });
+      if (adminOnly && data.role !== "admin") {
+        throw new Error("Akun ini bukan akun admin.");
+      }
       // rememberMe dicentang -> sesi disimpan permanen (localStorage), tetap
       // login walau browser ditutup. Tidak dicentang -> sesi hanya bertahan
       // selama tab/browser masih terbuka (sessionStorage).
       login(data, rememberMe);
-      router.push("/");
+      router.push(data.role === "admin" ? "/admin" : "/");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Email atau password salah."
@@ -89,11 +92,14 @@ export default function LoginPage() {
 
           <div className="mx-auto max-w-sm">
             <p className="text-lg font-semibold leading-snug text-[#1F2937]">
-              Nikmati pengalaman konser terbaik, tanpa ribet.
+              {adminOnly
+                ? "Kelola konser dan penjualan tiket dengan lebih terarah."
+                : "Nikmati pengalaman konser terbaik, tanpa ribet."}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
-              Satu akun untuk memesan tiket ke seluruh konser favoritmu di DR
-              Star.
+              {adminOnly
+                ? "Portal internal DR Star untuk tim pengelola acara."
+                : "Satu akun untuk memesan tiket ke seluruh konser favoritmu di DR Star."}
             </p>
           </div>
         </div>
@@ -115,10 +121,12 @@ export default function LoginPage() {
           <div className="w-full max-w-[440px] rounded-[24px] border border-[#E5E7EB] bg-white p-6 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-8">
             {/* Heading */}
             <h1 className="text-2xl font-bold tracking-tight text-[#1F2937] sm:text-[28px]">
-              Selamat Datang Kembali
+              {adminOnly ? "Masuk ke Admin Portal" : "Selamat Datang Kembali"}
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[#6B7280]">
-              Masuk untuk melanjutkan pemesanan konser favoritmu.
+              {adminOnly
+                ? "Gunakan akun yang dibuat oleh administrator utama."
+                : "Masuk untuk melanjutkan pemesanan konser favoritmu."}
             </p>
 
             {/* Error message */}
@@ -192,16 +200,17 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Register text */}
-            <p className="mt-5 text-center text-sm text-[#6B7280]">
-              Belum punya akun?{" "}
-              <Link
-                href="/auth/register"
-                className="font-semibold text-[#F59E0B] transition-all hover:underline"
-              >
-                Daftar
-              </Link>
-            </p>
+            {!adminOnly && (
+              <p className="mt-5 text-center text-sm text-[#6B7280]">
+                Belum punya akun?{" "}
+                <Link
+                  href="/auth/register"
+                  className="font-semibold text-[#F59E0B] transition-all hover:underline"
+                >
+                  Daftar
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       </div>

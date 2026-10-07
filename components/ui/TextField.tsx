@@ -2,7 +2,7 @@
 
 import { forwardRef, InputHTMLAttributes, ReactNode } from "react";
 
-interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   label: string;
   icon?: ReactNode;
   trailing?: ReactNode;
