@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, User, LogOut, ChevronDown } from "lucide-react";
+import { Search, User, LogOut, ChevronDown, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -14,14 +14,14 @@ export default function Navbar() {
   const [searchValue, setSearchValue] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
 
- useEffect(() => {
-  const handleScroll = () => {
-    setScrolled(window.scrollY > 50);
-    setProfileMenuOpen(false);
-  };
-  window.addEventListener("scroll", handleScroll, { passive: true });
-  return () => window.removeEventListener("scroll", handleScroll);
-}, []);
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+      setProfileMenuOpen(false);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -99,7 +99,7 @@ export default function Navbar() {
               href="/pembelian"
               className="text-sm font-semibold text-[#1F2937] transition-colors hover:text-[#6EE7B7]"
             >
-              Daftar Keinginan
+              Pembelian
             </Link>
 
             {isLoading ? (
@@ -130,7 +130,7 @@ export default function Navbar() {
                   className={`absolute right-0 top-full z-50 mt-2 w-52 origin-top-right rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-[0_12px_32px_rgba(15,118,110,0.15)] transition-all duration-200 ${
                     profileMenuOpen
                       ? "translate-y-0 scale-100 opacity-100"
-                      : "pointer-events-none -translate-y-2 scnpale-95 opacity-0"
+                      : "pointer-events-none -translate-y-2 scale-95 opacity-0"
                   }`}
                 >
                   <Link
@@ -156,6 +156,16 @@ export default function Navbar() {
                     <User size={16} />
                     Profil Saya
                   </Link>
+                  {user.role === "admin" && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[#1F2937] transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E]"
+                    >
+                      <LayoutDashboard size={16} />
+                      Dashboard Admin
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       setProfileMenuOpen(false);
@@ -246,7 +256,7 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="block w-full rounded-2xl px-5 py-3.5 text-left text-base font-semibold text-[#1F2937] transition-colors duration-150 hover:bg-[#ECFDF5] hover:text-[#0F766E]"
           >
-            Daftar Keinginan
+            Pembelian
           </Link>
 
           {user && (
@@ -261,6 +271,17 @@ export default function Navbar() {
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-xs font-bold text-white">{initials}</span>
               )}
               Profil Saya
+            </Link>
+          )}
+
+          {user?.role === "admin" && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex w-full items-center gap-2.5 rounded-2xl px-5 py-3.5 text-left text-base font-semibold text-[#1F2937] transition-colors duration-150 hover:bg-[#ECFDF5] hover:text-[#0F766E]"
+            >
+              <LayoutDashboard size={18} />
+              Dashboard Admin
             </Link>
           )}
 
