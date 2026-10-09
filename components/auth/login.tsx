@@ -41,14 +41,17 @@ export default function LoginPage({ adminOnly = false }: { adminOnly?: boolean }
     try {
       setLoading(true);
       const data = await loginUser({ email, password });
-      if (adminOnly && data.role !== "admin") {
+      // Portal staf: Admin Online dan Admin Offline masuk lewat halaman yang sama.
+      if (adminOnly && data.role !== "admin" && data.role !== "admin_offline") {
         throw new Error("Akun ini bukan akun admin.");
       }
       // rememberMe dicentang -> sesi disimpan permanen (localStorage), tetap
       // login walau browser ditutup. Tidak dicentang -> sesi hanya bertahan
       // selama tab/browser masih terbuka (sessionStorage).
       login(data, rememberMe);
-      router.push(data.role === "admin" ? "/admin" : "/");
+      router.push(
+        data.role === "admin" ? "/admin" : data.role === "admin_offline" ? "/admin/offline" : "/"
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Email atau password salah."

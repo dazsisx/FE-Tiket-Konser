@@ -89,11 +89,47 @@ export type AdminDashboard = {
   }>;
 };
 
+/** Transaksi penjualan offline (GET/POST /api/offline/pesanan). */
+export type PesananOffline = {
+  id: number;
+  user_id: number | null;
+  event_id: number;
+  kategori_tiket_id: number;
+  jumlah: number;
+  total_harga: string;
+  status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
+  kode_tiket: string | null;
+  qr_code: string | null; // data URL PNG
+  order_type: "online" | "offline";
+  nama_pembeli: string | null;
+  no_telepon_pembeli: string | null;
+  email_pembeli: string | null;
+  dibuat_oleh: number | null;
+  // Sequelize (underscored: true) mengirim createdAt; created_at dijaga sebagai cadangan.
+  createdAt?: string;
+  created_at?: string;
+  user?: { id: number | null; nama: string | null; email: string | null; no_telepon?: string | null };
+  event?: { id: number; nama_event: string; tanggal: string; lokasi: string };
+  kategori_tiket?: { id: number; nama_kelas: string; harga: string };
+  petugas?: { id: number; nama: string } | null;
+};
+
+/** GET /api/offline/dashboard */
+export type OfflineDashboard = {
+  ringkasan: {
+    penjualan_hari_ini: number;
+    tiket_terjual_hari_ini: number;
+    total_transaksi_offline: number;
+    pendapatan_hari_ini: number;
+  };
+  transaksi_terbaru: PesananOffline[];
+};
+
 export type AuthUser = {
   id: number;
   nama: string;
   email: string;
-  role: "admin" | "pelanggan";
+  role: "admin" | "admin_offline" | "pelanggan";
   avatar_url?: string | null;
 };
 
@@ -210,6 +246,53 @@ export async function verifyAdminOrder(id: number, action: "setujui" | "tolak"):
   const res = await apiFetch<ApiItemResponse<PesananAdmin>>(`/pesanan/${id}/verifikasi`, {
     method: "PATCH",
     body: JSON.stringify({ aksi: action }),
+  });
+  return res.data;
+}
+
+// ===== Admin Offline (/api/offline/*, role admin_offline atau admin) =====
+
+export async function fetchOfflineDashboard(): Promise<OfflineDashboard> {
+  const res = await apiFetch<ApiItemResponse<OfflineDashboard>>("/offline/dashboard");
+  return res.data;
+}
+
+/** GET /api/offline/pesanan?page&limit (limit maksimal 200 di backend) */
+export async function fetchOfflineOrdersPage(page = 1, limit = 200) {
+  return apiFetch<{ success: boolean; total: number; page: number; limit: number; data: PesananOffline[] }>(
+    `/offline/pesanan?page=${page}&limit=${limit}`
+  );
+}
+
+/** Ambil seluruh transaksi offline (semua halaman), urut terbaru dulu. */
+export async function fetchAllOfflineOrders(): Promise<PesananOffline[]> {
+  const limit = 200;
+  const byId = new Map<number, PesananOffline>();
+  let page = 1;
+  let total = 0;
+  do {
+    const res = await fetchOfflineOrdersPage(page, limit);
+    total = res.total;
+    if (!res.data.length) break;
+    // Map: transaksi baru di tengah paging bisa menggeser offset dan menduplikasi baris.
+    res.data.forEach((order) => byId.set(order.id, order));
+    page += 1;
+  } while (byId.size < total && page <= 50);
+  return Array.from(byId.values());
+}
+
+/** POST /api/offline/pesanan — langsung tercatat lunas, stok dikurangi di backend. */
+export async function createOfflineOrder(payload: {
+  event_id: number;
+  kategori_tiket_id: number;
+  jumlah: number;
+  nama_pembeli: string;
+  no_telepon?: string;
+  email?: string;
+}): Promise<PesananOffline> {
+  const res = await apiFetch<ApiDataResponse<PesananOffline>>("/offline/pesanan", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
   return res.data;
 }
@@ -438,4 +521,4 @@ export function getHargaTermurah(kategoriTiket?: KategoriTiket[]): string {
   if (!kategoriTiket || kategoriTiket.length === 0) return "Belum tersedia";
   const min = Math.min(...kategoriTiket.map((k) => parseFloat(k.harga)));
   return formatRupiah(min);
-}
+}
