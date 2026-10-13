@@ -51,6 +51,7 @@ export default function AdminEvents() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingArtists, setLoadingArtists] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -102,12 +103,21 @@ export default function AdminEvents() {
     `${event.nama_event} ${event.lokasi} ${event.artis?.nama ?? ""}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  function openNewEvent() {
-    setEditingEvent(null);
-    setEventDraft({ ...emptyEvent, artis_id: artists[0] ? String(artists[0].id) : "" });
-    setPoster(null);
-    setEventDialog(true);
+  async function openNewEvent() {
     setError(null);
+    setLoadingArtists(true);
+    try {
+      const artistData = await fetchArtists();
+      setArtists(artistData);
+      setEditingEvent(null);
+      setEventDraft({ ...emptyEvent, artis_id: artistData[0] ? String(artistData[0].id) : "" });
+      setPoster(null);
+      setEventDialog(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Daftar artis gagal dimuat.");
+    } finally {
+      setLoadingArtists(false);
+    }
   }
 
   function openEditEvent(event: EventItem) {
@@ -227,7 +237,7 @@ export default function AdminEvents() {
           <h2 className="mt-1 text-3xl font-bold tracking-tight">Acara & tiket</h2>
           <p className="mt-2 text-sm text-[#6B7280]">Atur jadwal acara, penjualan, harga, dan kuota.</p>
         </div>
-        <button type="button" onClick={openNewEvent} className="flex w-fit items-center gap-2 rounded-lg bg-[#0F766E] px-4 py-3 text-sm font-bold text-white hover:bg-[#0D625B]"><Plus size={17} /> Buat acara</button>
+        <button type="button" disabled={loadingArtists} onClick={openNewEvent} className="flex w-fit items-center gap-2 rounded-lg bg-[#0F766E] px-4 py-3 text-sm font-bold text-white hover:bg-[#0D625B] disabled:cursor-wait disabled:opacity-70">{loadingArtists ? "Memuat artis..." : <><Plus size={17} /> Buat acara</>}</button>
       </div>
 
       {notice && <div role="status" className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><span>{notice}</span><button type="button" aria-label="Tutup notifikasi" onClick={() => setNotice(null)}><X size={16} /></button></div>}

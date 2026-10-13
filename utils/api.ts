@@ -201,6 +201,17 @@ export async function fetchArtists(): Promise<Artis[]> {
   return res.data;
 }
 
+export async function saveAdminArtist(id: number | null, body: FormData): Promise<Artis> {
+  const path = id === null ? "/artis" : `/artis/${id}`;
+  const method = id === null ? "POST" : "PUT";
+  const res = await apiFetchForm<ApiItemResponse<Artis>>(path, method, body);
+  return res.data;
+}
+
+export async function deleteAdminArtist(id: number): Promise<void> {
+  await apiFetch<ApiMessageResponse>(`/artis/${id}`, { method: "DELETE" });
+}
+
 export async function fetchAdminOrders(): Promise<PesananAdmin[]> {
   const res = await apiFetch<ApiListResponse<PesananAdmin>>("/pesanan");
   return res.data;
@@ -521,4 +532,4 @@ export function getHargaTermurah(kategoriTiket?: KategoriTiket[]): string {
   if (!kategoriTiket || kategoriTiket.length === 0) return "Belum tersedia";
   const min = Math.min(...kategoriTiket.map((k) => parseFloat(k.harga)));
   return formatRupiah(min);
-}
+}
