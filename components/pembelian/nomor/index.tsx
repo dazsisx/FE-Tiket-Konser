@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Phone } from "lucide-react";
+import { ArrowLeft, Phone, Ticket } from "lucide-react";
 import { Outfit } from "next/font/google";
+import HasilPembelian from "../HasilPembelian";
+import { cekPembelian, type HasilCekPembelian } from "../../../utils/cekPembelian";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -14,6 +16,29 @@ const outfit = Outfit({
 
 export default function CekPembelianNomor() {
   const [phone, setPhone] = useState("");
+  const [kode, setKode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [hasil, setHasil] = useState<HasilCekPembelian | null>(null);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setHasil(null);
+    setLoading(true);
+    try {
+      setHasil(
+        await cekPembelian({
+          no_telepon: phone.trim(),
+          kode_tiket: kode.trim(),
+        })
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -54,11 +79,10 @@ export default function CekPembelianNomor() {
             Pembelian
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-[#6B7280] sm:text-[15px]">
-            Silakan masukkan nomor HP yang digunakan saat melakukan
-            pembelian tiket untuk melihat detail pesanan Anda.
+            Masukkan nomor HP yang digunakan saat membeli tiket beserta kode booking untuk melihat detail pesanan Anda.
           </p>
 
-          <form className="mt-7 flex flex-col gap-2">
+          <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-2">
             <label
               htmlFor="phone"
               className="text-sm font-semibold text-[#1F2937]"
@@ -76,17 +100,54 @@ export default function CekPembelianNomor() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Masukkan nomor HP"
+                required
                 className="h-[56px] w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none"
               />
             </div>
 
+            <label
+              htmlFor="kode"
+              className="mt-4 text-sm font-semibold text-[#1F2937]"
+            >
+              Kode Booking <span className="text-[#0F766E]">*</span>
+            </label>
+
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#9CA3AF]">
+                <Ticket size={18} />
+              </span>
+              <input
+                id="kode"
+                type="text"
+                value={kode}
+                onChange={(e) => setKode(e.target.value.toUpperCase())}
+                placeholder="Contoh: TKT-1A2B3C4D"
+                maxLength={12}
+                autoComplete="off"
+                required
+                className="h-[56px] w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm tracking-wider text-[#1F2937] placeholder:tracking-normal placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none"
+              />
+            </div>
+            <p className="text-xs text-[#6B7280]">
+              Kode booking diawali TKT- dan tertera pada pesanan Anda.
+            </p>
+
+            {error && (
+              <p role="alert" className="mt-2 text-sm font-medium text-red-600">
+                {error}
+              </p>
+            )}
+
             <button
               type="submit"
-              className="mt-6 h-[56px] w-full rounded-full bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]"
+              disabled={loading}
+              className="mt-6 h-[56px] w-full rounded-full bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
             >
-              Lihat Pembelian
+              {loading ? "Memeriksa..." : "Lihat Pembelian"}
             </button>
           </form>
+
+          {hasil && <HasilPembelian data={hasil} />}
 
           <div className="mt-6 flex items-center gap-4">
             <div className="h-px flex-1 bg-[#E5E7EB]" />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import BackButton from "@/components/ui/BackButton";
 import {
   ChevronRight,
   Building2,
@@ -56,6 +57,11 @@ export default function EventDetail({ event }: EventDetailProps) {
   return (
     <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <BackButton
+          fallbackHref="/"
+          className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:text-[#F59E0B]"
+        />
+
         {/* Breadcrumb */}
         <nav
           aria-label="Breadcrumb"
@@ -96,6 +102,7 @@ export default function EventDetail({ event }: EventDetailProps) {
                 src={posterUrl}
                 alt={event.nama_event}
                 fill
+                unoptimized
                 sizes="(max-width: 1024px) 100vw, 420px"
                 className="object-cover"
               />

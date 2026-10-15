@@ -90,7 +90,7 @@ function EventCard({ event }: { event: EventItem }) {
             <ImageIcon size={22} strokeWidth={1.5} />
           </div>
         )}
-        {event.status === "tutup" && (
+          {event.status === "ditutup" && (
           <span className="absolute top-2 left-2 rounded-full bg-[#1F2937]/80 px-2.5 py-1 text-[10px] font-bold text-white">
             Tiket Ditutup
           </span>

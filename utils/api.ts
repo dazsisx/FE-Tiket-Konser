@@ -56,7 +56,7 @@ export type EventItem = {
   lokasi: string;
   poster: string | null;
   artis_id: number;
-  status: "buka" | "tutup";
+    status: "draft" | "aktif" | "ditutup" | "selesai";
   artis?: Artis;
   kategori_tiket?: KategoriTiket[];
 };
@@ -532,4 +532,59 @@ export function getHargaTermurah(kategoriTiket?: KategoriTiket[]): string {
   if (!kategoriTiket || kategoriTiket.length === 0) return "Belum tersedia";
   const min = Math.min(...kategoriTiket.map((k) => parseFloat(k.harga)));
   return formatRupiah(min);
+}
+
+// ===== Pesanan pelanggan (alur beli tiket online) =====
+
+/** Pesanan milik pelanggan (POST /api/pesanan, GET /api/pesanan/:id). */
+export type PesananSaya = {
+  id: number;
+  user_id: number;
+  event_id: number;
+  kategori_tiket_id: number;
+  jumlah: number;
+  total_harga: string;
+  status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
+  bukti_bayar: string | null;
+  kode_tiket: string | null;
+  qr_code: string | null; // data URL PNG, baru terisi setelah lunas
+  createdAt?: string;
+  created_at?: string;
+  // Di detail pesanan, event datang mentah dari BE: kolomnya image_url / banner, bukan poster
+  event?: {
+    id: number;
+    nama_event: string;
+    tanggal: string;
+    lokasi: string;
+    image_url?: string | null;
+    banner?: string | null;
+  };
+  kategori_tiket?: { id: number; nama_kelas: string; harga: string };
+};
+
+/** POST /api/pesanan — buat pesanan (status awal: pending). Total dihitung server. */
+export async function createOrder(payload: {
+  event_id: number;
+  kategori_tiket_id: number;
+  jumlah: number;
+}): Promise<PesananSaya> {
+  const res = await apiFetch<ApiDataResponse<PesananSaya>>("/pesanan", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return res.data;
+}
+
+/** GET /api/pesanan/:id — detail pesanan milik sendiri */
+export async function fetchMyOrder(id: string | number): Promise<PesananSaya> {
+  const res = await apiFetch<ApiItemResponse<PesananSaya>>(`/pesanan/${id}`);
+  return res.data;
+}
+
+/** POST /api/pesanan/:id/bayar — unggah bukti pembayaran (field: bukti_bayar) */
+export async function uploadPaymentProof(id: number, file: File): Promise<PesananSaya> {
+  const body = new FormData();
+  body.append("bukti_bayar", file);
+  const res = await apiFetchForm<ApiDataResponse<PesananSaya>>(`/pesanan/${id}/bayar`, "POST", body);
+  return res.data;
 }
