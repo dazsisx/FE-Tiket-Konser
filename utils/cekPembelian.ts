@@ -1,11 +1,21 @@
 // Pemanggil API publik "cek pembelian" (tanpa login).
-// Base URL mengikuti NEXT_PUBLIC_API_URL (tanpa "/api" di belakangnya), default ke backend lokal.
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").replace(/\/+$/, "");
+// Base URL memakai API_BASE_URL dari utils/api.ts, supaya satu aturan untuk semua pemanggilan
+// (NEXT_PUBLIC_API_URL boleh diisi dengan atau tanpa "/api" di belakangnya).
+import { API_BASE_URL } from "./api";
 
 export type StatusBayar = "pending" | "lunas" | "ditolak" | "kadaluarsa";
+export type StatusTiket = "aktif" | "terpakai" | "dibatalkan";
+
+/** Satu lembar tiket. qr_code hanya ada untuk tiket yang masih aktif. */
+export interface TiketCek {
+  nomor_urut: number;
+  status: StatusTiket;
+  digunakan_pada: string | null;
+  qr_code: string | null; // data URL PNG
+}
 
 export interface HasilCekPembelian {
-  kode_tiket: string;
+  kode_tiket: string; // kode booking
   status_bayar: StatusBayar;
   order_type: "online" | "offline";
   jumlah: number;
@@ -20,7 +30,10 @@ export interface HasilCekPembelian {
     status: string;
   } | null;
   kategori: { nama_kelas: string; harga: number } | null;
-  qr_code: string | null;
+  /** true jika bukti bayar sudah diunggah (status pending = menunggu verifikasi admin) */
+  bukti_bayar_terunggah: boolean;
+  /** Satu QR unik per tiket. Kosong jika pesanan belum lunas. */
+  tiket: TiketCek[];
 }
 
 export interface CekPembelianInput {
@@ -32,7 +45,7 @@ export interface CekPembelianInput {
 export async function cekPembelian(input: CekPembelianInput): Promise<HasilCekPembelian> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api/pesanan/cek`, {
+    res = await fetch(`${API_BASE_URL}/pesanan/cek`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),

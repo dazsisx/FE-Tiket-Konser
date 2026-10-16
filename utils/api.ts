@@ -89,6 +89,15 @@ export type AdminDashboard = {
   }>;
 };
 
+/** Satu lembar tiket (tabel `tiket` di BE). QR hanya ada selama tiket masih "aktif". */
+export type TiketPesanan = {
+  nomor_urut: number;
+  kode?: string; // kode tiket per lembar (tidak dikirim di endpoint publik)
+  status: "aktif" | "terpakai" | "dibatalkan";
+  digunakan_pada: string | null;
+  qr_code: string | null; // data URL PNG
+};
+
 /** Transaksi penjualan offline (GET/POST /api/offline/pesanan). */
 export type PesananOffline = {
   id: number;
@@ -99,7 +108,8 @@ export type PesananOffline = {
   total_harga: string;
   status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
   kode_tiket: string | null;
-  qr_code: string | null; // data URL PNG
+  qr_code: string | null; // LAMA (tidak lagi diisi BE) — pakai `tiket`
+  tiket?: TiketPesanan[]; // satu QR unik per tiket (POST & GET detail)
   order_type: "online" | "offline";
   nama_pembeli: string | null;
   no_telepon_pembeli: string | null;
@@ -547,7 +557,8 @@ export type PesananSaya = {
   status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
   bukti_bayar: string | null;
   kode_tiket: string | null;
-  qr_code: string | null; // data URL PNG, baru terisi setelah lunas
+  qr_code: string | null; // LAMA (tidak lagi diisi BE) — pakai `tiket`
+  tiket?: TiketPesanan[]; // satu QR unik per tiket, terisi setelah lunas
   createdAt?: string;
   created_at?: string;
   // Di detail pesanan, event datang mentah dari BE: kolomnya image_url / banner, bukan poster
@@ -587,4 +598,51 @@ export async function uploadPaymentProof(id: number, file: File): Promise<Pesana
   body.append("bukti_bayar", file);
   const res = await apiFetchForm<ApiDataResponse<PesananSaya>>(`/pesanan/${id}/bayar`, "POST", body);
   return res.data;
+}
+
+// ===== Validasi tiket (pemindai, role admin / admin_offline) =====
+
+export type HasilValidasiTiket = {
+  success: boolean;
+  hasil: "valid" | "tidak_valid" | "belum_lunas" | "dibatalkan" | "sudah_digunakan" | "bukan_hari_event";
+  message: string;
+  data?: {
+    nomor_urut: number;
+    dari: number;
+    status: "aktif" | "terpakai" | "dibatalkan";
+    digunakan_pada: string | null;
+    kode_booking: string | null;
+    nama_pembeli: string | null;
+    order_type: "online" | "offline";
+    event: { nama_event: string; tanggal: string; lokasi: string } | null;
+    kategori: string | null;
+  };
+};
+
+/**
+ * POST /api/tiket/validasi — BE yang memutuskan valid/tidaknya QR.
+ * mode "cek" hanya melihat, mode "gunakan" menandai tiket terpakai (atomik di BE).
+ * Hasil bisnis (valid, sudah_digunakan, tidak_valid, ...) dikembalikan sebagai objek,
+ * walau HTTP status-nya 404/409. Error jaringan atau 401/403/500 dilempar sebagai Error.
+ */
+export async function validateTicket(qr: string, mode: "cek" | "gunakan"): Promise<HasilValidasiTiket> {
+  const token = getToken();
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/tiket/validasi`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ qr, mode }),
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error("Tidak dapat terhubung ke server. Coba lagi.");
+  }
+
+  const body = await res.json().catch(() => null);
+  if (body && typeof body.hasil === "string") return body as HasilValidasiTiket;
+  throw new Error(body?.message || `Request gagal (status ${res.status})`);
 }

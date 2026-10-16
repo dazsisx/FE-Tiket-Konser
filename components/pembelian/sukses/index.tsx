@@ -56,7 +56,7 @@ const stageInfo: Record<Stage, { title: string; desc: string; tone: string; Icon
   },
   lunas: {
     title: "Pembayaran Berhasil!",
-    desc: "Terima kasih! Pembayaranmu sudah diverifikasi. Tunjukkan QR di bawah saat masuk venue.",
+    desc: "Terima kasih! Pembayaranmu sudah diverifikasi. Setiap tiket punya QR sendiri, tunjukkan QR-nya saat masuk venue.",
     tone: "bg-[#0F766E]",
     Icon: CheckCircle2,
   },
@@ -191,6 +191,7 @@ function SuksesContent() {
   const posterUrl = getImageUrl(event?.image_url ?? event?.banner);
   const orderDate = order.createdAt ?? order.created_at;
   const bookingCode = order.kode_tiket ?? "-";
+  const tickets = order.tiket ?? [];
 
   return (
     <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
@@ -353,7 +354,7 @@ function SuksesContent() {
               </div>
             )}
 
-            {/* --- Lunas: QR dari BE --- */}
+            {/* --- Lunas: satu QR unik per tiket (dari tabel tiket di BE) --- */}
             {stage === "lunas" && (
               <>
                 <div className="mt-5 flex items-center gap-3 text-xs font-semibold text-[#9CA3AF]">
@@ -362,24 +363,73 @@ function SuksesContent() {
                   <span className="h-px flex-1 bg-[#E5E7EB]" />
                 </div>
 
-                <div className="mt-5 flex items-center justify-center rounded-2xl border border-[#E5E7EB] bg-white p-4">
-                  {order.qr_code ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={order.qr_code} alt={`QR kode booking ${bookingCode}`} className="h-56 w-56" />
-                  ) : (
-                    <p className="py-16 text-center text-sm text-[#6B7280]">QR belum tersedia. Coba muat ulang halaman.</p>
-                  )}
-                </div>
+                {tickets.length === 0 ? (
+                  <div className="mt-5 rounded-2xl border border-[#E5E7EB] bg-white p-4 text-center">
+                    <p className="py-10 text-sm text-[#6B7280]">Tiketmu sedang disiapkan. Coba muat ulang halaman.</p>
+                    <button
+                      type="button"
+                      onClick={() => void handleRefresh()}
+                      disabled={refreshing}
+                      className="mb-2 inline-flex items-center justify-center gap-2 rounded-full border border-[#0F766E] px-5 py-2.5 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5] disabled:opacity-60"
+                    >
+                      <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
+                      {refreshing ? "Memeriksa..." : "Muat Ulang"}
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="mt-5 flex flex-col gap-4">
+                    {tickets.map((t) => (
+                      <li key={t.nomor_urut} className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="font-bold text-[#1F2937]">
+                            Tiket {t.nomor_urut} dari {order.jumlah}
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              t.status === "aktif"
+                                ? "bg-[#ECFDF5] text-[#0F766E]"
+                                : t.status === "terpakai"
+                                  ? "bg-[#F3F4F6] text-[#6B7280]"
+                                  : "bg-red-50 text-red-600"
+                            }`}
+                          >
+                            {t.status === "aktif" ? "Aktif" : t.status === "terpakai" ? "Sudah digunakan" : "Dibatalkan"}
+                          </span>
+                        </div>
 
-                {order.qr_code && (
-                  <a
-                    href={order.qr_code}
-                    download={`tiket-${bookingCode}.png`}
-                    className="mt-5 flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] py-3 text-sm font-semibold text-[#1F2937] transition-colors duration-300 hover:bg-[#FFFBF5]"
-                  >
-                    <Download size={16} />
-                    Unduh QR Tiket
-                  </a>
+                        {t.status === "aktif" && t.qr_code ? (
+                          <>
+                            <div className="mt-3 flex items-center justify-center">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={t.qr_code}
+                                alt={`QR tiket ${t.nomor_urut} dari ${order.jumlah}, kode booking ${bookingCode}`}
+                                className="h-56 w-56 max-w-full"
+                              />
+                            </div>
+                            <a
+                              href={t.qr_code}
+                              download={`tiket-${bookingCode}-${t.nomor_urut}.png`}
+                              className="mt-3 flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] py-2.5 text-sm font-semibold text-[#1F2937] transition-colors duration-300 hover:bg-[#FFFBF5]"
+                            >
+                              <Download size={16} />
+                              Unduh QR Tiket {t.nomor_urut}
+                            </a>
+                          </>
+                        ) : (
+                          <p className="py-8 text-center text-sm text-[#6B7280]">
+                            {t.status === "terpakai"
+                              ? `Tiket ini sudah dipakai${
+                                  t.digunakan_pada
+                                    ? ` pada ${formatTanggal(t.digunakan_pada)}, ${formatJam(t.digunakan_pada)}`
+                                    : ""
+                                }.`
+                              : "Tiket ini sudah dibatalkan dan tidak dapat digunakan."}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </>
             )}

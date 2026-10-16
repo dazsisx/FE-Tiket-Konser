@@ -3,15 +3,16 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarDays, ClipboardList, LayoutDashboard, LogOut, Menu, Music2, X } from "lucide-react";
+import { CalendarDays, ClipboardList, LayoutDashboard, LogOut, Menu, Music2, ScanLine, X } from "lucide-react";
 
-type AdminSection = "artists" | "events" | "orders";
+type AdminSection = "artists" | "events" | "orders" | "scan";
 
 const navigation = [
   { label: "Ringkasan", href: "/admin", icon: LayoutDashboard },
   { label: "Artis", href: "/admin/artists", icon: Music2, section: "artists" as const },
   { label: "Acara & Tiket", href: "/admin/events", icon: CalendarDays, section: "events" as const },
   { label: "Pesanan", href: "/admin/orders", icon: ClipboardList, section: "orders" as const },
+  { label: "Pindai Tiket", href: "/admin/scan", icon: ScanLine, section: "scan" as const },
 ];
 
 export default function AdminShell({

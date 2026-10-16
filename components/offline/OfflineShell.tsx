@@ -3,16 +3,17 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FileText, LayoutDashboard, LogOut, Menu, Receipt, Ticket, X } from "lucide-react";
+import { FileText, LayoutDashboard, LogOut, Menu, Receipt, ScanLine, Ticket, X } from "lucide-react";
 import { OFFLINE_BASE } from "./config";
 
-type OfflineSection = "dashboard" | "jual" | "riwayat" | "laporan";
+type OfflineSection = "dashboard" | "jual" | "riwayat" | "laporan" | "scan";
 
 const navigation = [
   { label: "Ringkasan", href: OFFLINE_BASE, icon: LayoutDashboard, section: "dashboard" as const },
   { label: "Jual Tiket", href: `${OFFLINE_BASE}/jual`, icon: Ticket, section: "jual" as const },
   { label: "Riwayat Transaksi", href: `${OFFLINE_BASE}/riwayat`, icon: Receipt, section: "riwayat" as const },
   { label: "Laporan Penjualan", href: `${OFFLINE_BASE}/laporan`, icon: FileText, section: "laporan" as const },
+  { label: "Pindai Tiket", href: `${OFFLINE_BASE}/scan`, icon: ScanLine, section: "scan" as const },
 ];
 
 /** Layout Admin Offline: sama dengan AdminShell (Admin Online), menu disesuaikan untuk penjualan di lokasi. */
@@ -75,4 +76,3 @@ export default function OfflineShell({
       </main>
     </div>
   );
-}
