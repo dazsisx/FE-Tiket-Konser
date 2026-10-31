@@ -179,7 +179,7 @@ export default function LegalContent({ variant }: { variant: LegalVariant }) {
             />
           </Link>
           <Link
-            href="/auth/register"
+            href="/"
             className="flex items-center gap-1.5 text-sm font-medium text-[#6B7280] transition-colors hover:text-[#0F766E]"
           >
             <ArrowLeft size={15} />

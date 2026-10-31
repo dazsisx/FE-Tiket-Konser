@@ -135,8 +135,9 @@ function CheckoutContent() {
         kategori_tiket_id: kategori.id,
         jumlah,
       });
-      // isSubmitting sengaja dibiarkan true supaya tidak bisa klik dua kali saat pindah halaman
-      router.push(`/pembelian/sukses?order=${order.id}`);
+      if (!order.payment_url) throw new Error("Sesi pembayaran belum tersedia. Silakan coba lagi.");
+      // isSubmitting sengaja dibiarkan true agar pesanan tidak dibuat dua kali saat berpindah ke Midtrans.
+      window.location.assign(order.payment_url);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Pesanan gagal dibuat.");
       setIsSubmitting(false);
@@ -196,10 +197,9 @@ function CheckoutContent() {
               <div className="flex items-start gap-3">
                 <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
                 <p className="leading-relaxed">
-                  Setelah menekan <span className="font-semibold text-[#1F2937]">Buat Pesanan</span>, pesananmu tercatat
-                  dengan status menunggu pembayaran dan stok tiket dipesan untukmu. Di halaman berikutnya kamu
-                  mengunggah bukti pembayaran, lalu admin memverifikasinya. E-ticket (QR) muncul setelah pembayaran
-                  disetujui.
+                  Setelah menekan <span className="font-semibold text-[#1F2937]">Buat Pesanan</span>, kamu akan
+                  diarahkan ke halaman pembayaran Midtrans. E-ticket (QR) terbit otomatis setelah pembayaran
+                  berhasil dikonfirmasi.
                 </p>
               </div>
             )}

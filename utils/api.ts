@@ -556,6 +556,8 @@ export type PesananSaya = {
   total_harga: string;
   status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
   bukti_bayar: string | null;
+  payment_url?: string | null;
+  payment_status?: string | null;
   kode_tiket: string | null;
   qr_code: string | null; // LAMA (tidak lagi diisi BE) — pakai `tiket`
   tiket?: TiketPesanan[]; // satu QR unik per tiket, terisi setelah lunas
@@ -573,7 +575,7 @@ export type PesananSaya = {
   kategori_tiket?: { id: number; nama_kelas: string; harga: string };
 };
 
-/** POST /api/pesanan — buat pesanan (status awal: pending). Total dihitung server. */
+/** POST /api/pesanan — buat pesanan dan sesi pembayaran Midtrans. Total dihitung server. */
 export async function createOrder(payload: {
   event_id: number;
   kategori_tiket_id: number;

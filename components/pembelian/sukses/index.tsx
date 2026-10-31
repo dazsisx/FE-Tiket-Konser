@@ -44,7 +44,7 @@ function stageOf(order: PesananSaya): Stage {
 const stageInfo: Record<Stage, { title: string; desc: string; tone: string; Icon: typeof CheckCircle2 }> = {
   bayar: {
     title: "Pesanan Dibuat",
-    desc: "Tiketmu sudah dipesan. Selesaikan pembayaran lalu unggah bukti pembayarannya di bawah ini.",
+    desc: "Tiketmu sudah dipesan. Selesaikan pembayaran agar e-ticket dapat diterbitkan.",
     tone: "bg-[#F59E0B]",
     Icon: Upload,
   },
@@ -291,7 +291,35 @@ function SuksesContent() {
             </div>
 
             {/* --- Belum bayar: unggah bukti --- */}
-            {stage === "bayar" && (
+            {stage === "bayar" && order.payment_url && (
+              <div className="mt-5">
+                <div className="flex items-start gap-3 rounded-xl border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3.5 text-xs leading-relaxed text-[#6B7280]">
+                  <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
+                  <p>
+                    Selesaikan pembayaran sebesar{" "}
+                    <span className="font-semibold text-[#1F2937]">{formatRupiah(order.total_harga)}</span> melalui
+                    halaman pembayaran Midtrans. Tiket akan aktif otomatis setelah pembayaran terkonfirmasi.
+                  </p>
+                </div>
+                <a
+                  href={order.payment_url}
+                  className="mt-4 flex w-full items-center justify-center rounded-full bg-[#0F766E] py-3 text-sm font-bold text-white shadow-[0_10px_26px_rgba(15,118,110,0.28)] transition-colors hover:bg-[#0D9488]"
+                >
+                  Lanjutkan Pembayaran
+                </a>
+                <button
+                  type="button"
+                  onClick={() => void handleRefresh()}
+                  disabled={refreshing}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-[#0F766E] py-3 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5] disabled:opacity-60"
+                >
+                  <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
+                  {refreshing ? "Memeriksa..." : "Periksa Status Pembayaran"}
+                </button>
+              </div>
+            )}
+
+            {stage === "bayar" && !order.payment_url && (
               <div className="mt-5">
                 <div className="flex items-start gap-3 rounded-xl border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3.5 text-xs leading-relaxed text-[#6B7280]">
                   <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
