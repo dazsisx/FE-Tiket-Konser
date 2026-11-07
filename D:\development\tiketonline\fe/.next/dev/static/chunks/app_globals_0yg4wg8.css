@@ -2048,16 +2048,6 @@
     }
   }
 
-  .bg-white\/\[0\.92\] {
-    background-color: #ffffffeb;
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .bg-white\/\[0\.92\] {
-      background-color: color-mix(in oklab, var(--color-white) 92%, transparent);
-    }
-  }
-
   .bg-white\/\[0\.97\] {
     background-color: #fffffff7;
   }
@@ -2781,11 +2771,6 @@
 
   .shadow-\[0_4px_24px_rgba\(15\,118\,110\,0\.06\)\] {
     --tw-shadow: 0 4px 24px var(--tw-shadow-color, #0f766e0f);
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-
-  .shadow-\[0_4px_24px_rgba\(15\,118\,110\,0\.10\)\] {
-    --tw-shadow: 0 4px 24px var(--tw-shadow-color, #0f766e1a);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
 
@@ -3809,6 +3794,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.navbar-liquid-glass {
+  -webkit-backdrop-filter: blur(24px) saturate(175%);
+  backdrop-filter: blur(24px) saturate(175%);
+  background: linear-gradient(120deg, #ffffffdb, #e6fff8ad 52%, #ffffffc7);
+  box-shadow: 0 12px 32px #0f766e21;
 }
 
 @property --tw-translate-x {

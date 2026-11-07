@@ -591,7 +591,7 @@ function Navbar() {
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: `fixed top-0 right-0 left-0 z-50 flex justify-center px-4 transition-all duration-500 ${scrolled ? "pt-3" : "pt-4"}`,
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
-                    className: `relative flex h-16 items-center gap-4 transition-all duration-500 ${scrolled ? "w-[95%] max-w-[1000px] rounded-full bg-white/[0.92] px-6 shadow-[0_4px_24px_rgba(15,118,110,0.10)] backdrop-blur-md" : "w-full max-w-[1200px] bg-transparent px-5"}`,
+                    className: `relative flex h-16 items-center gap-4 transition-all duration-500 ${scrolled ? "navbar-liquid-glass w-[95%] max-w-[1000px] rounded-full px-6" : "w-full max-w-[1200px] bg-transparent px-5"}`,
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
                             href: "/",
