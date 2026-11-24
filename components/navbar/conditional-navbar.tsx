@@ -9,7 +9,10 @@ const HIDDEN_ROUTES = ["/auth/login", "/auth/register", "/terms", "/privacy", "/
 export default function ConditionalNavbar() {
   const pathname = usePathname();
 
-  const isHidden = HIDDEN_ROUTES.includes(pathname) || pathname.startsWith("/admin");
+  const isHidden =
+    HIDDEN_ROUTES.includes(pathname) ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/kategori");
 
   if (isHidden) return null;
 
