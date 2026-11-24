@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Info, RotateCw, Plus, Minus } from "lucide-react";
+import { RotateCw, Plus, Minus } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
+import VenueMap from "@/components/ui/VenueMap";
 import {
   fetchEventById,
   formatRupiah,
@@ -62,6 +63,7 @@ export default function TicketSelection() {
   const selectedTier = tiers.find((t) => t.id === selected?.id) ?? null;
   const totalTickets = selectedTier && selected ? selected.qty : 0;
   const totalPrice = selectedTier ? parseFloat(selectedTier.harga) * totalTickets : 0;
+  const maxQty = selectedTier ? Math.min(MAX_TICKETS_PER_ORDER, sisaOf(selectedTier)) : 0;
 
   const add = (tier: KategoriTiket) => {
     const max = Math.min(MAX_TICKETS_PER_ORDER, sisaOf(tier));
@@ -91,16 +93,14 @@ export default function TicketSelection() {
     <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
-          {/* ===== Kolom kiri: daftar tiket ===== */}
+          {/* ===== Kolom kiri: denah venue ===== */}
           <div>
             <BackButton fallbackHref={`/events/${slug}`} />
 
             {loading ? (
               <div className="mt-6 space-y-4">
                 <div className="h-8 w-2/3 animate-pulse rounded-lg bg-[#F3F4F6]" />
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-32 animate-pulse rounded-2xl bg-[#F3F4F6]" />
-                ))}
+                <div className="h-96 animate-pulse rounded-2xl bg-[#F3F4F6]" />
               </div>
             ) : error || !event ? (
               <div role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-700">
@@ -120,8 +120,8 @@ export default function TicketSelection() {
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-[#6B7280]">
-                    Pilih tiket yang ingin kamu pesan (satu kategori per pesanan,
-                    maksimal {MAX_TICKETS_PER_ORDER} tiket):
+                    Pilih zona di denah (satu kategori per pesanan, maksimal{" "}
+                    {MAX_TICKETS_PER_ORDER} tiket):
                   </p>
                   <div className="flex items-center gap-3 text-sm">
                     <span className="text-[#9CA3AF]">Pembaruan terakhir {lastUpdated}</span>
@@ -142,81 +142,13 @@ export default function TicketSelection() {
                     Belum ada kategori tiket untuk event ini.
                   </p>
                 ) : (
-                  <div className="mt-6 flex flex-col gap-4">
-                    {tiers.map((tier) => {
-                      const sisa = sisaOf(tier);
-                      const available = saleOpen && sisa > 0;
-                      const qty = selected?.id === tier.id ? selected.qty : 0;
-                      const maxQty = Math.min(MAX_TICKETS_PER_ORDER, sisa);
-                      return (
-                        <div
-                          key={tier.id}
-                          className="rounded-2xl border border-[#E5E7EB] bg-[#FFFBF5] px-6 py-5"
-                        >
-                          <h3 className="text-base font-extrabold tracking-wide text-[#1F2937] sm:text-lg">
-                            {tier.nama_kelas}
-                          </h3>
-
-                          <div className="mt-3 flex items-center gap-2 text-sm text-[#6B7280]">
-                            <Info size={14} className="text-[#9CA3AF]" />
-                            {sisa > 0 ? `Tiket Tersedia (sisa ${sisa})` : "Tiket Habis"}
-                          </div>
-
-                          {/* Garis sobekan tiket — konsisten dengan motif di footer */}
-                          <div className="relative my-4">
-                            <div className="h-px w-full border-t border-dashed border-[#E5E7EB]" />
-                            <span className="absolute top-1/2 -left-6 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-[#E5E7EB] bg-white" />
-                            <span className="absolute top-1/2 -right-6 h-3.5 w-3.5 -translate-y-1/2 rounded-full border border-[#E5E7EB] bg-white" />
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <p className="text-lg font-extrabold text-[#F59E0B] sm:text-xl">
-                              {formatRupiah(tier.harga)}
-                            </p>
-
-                            {available ? (
-                              qty === 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => add(tier)}
-                                  className="flex items-center gap-1.5 rounded-full bg-[#0F766E] px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,118,110,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0D9488]"
-                                >
-                                  Tambah
-                                  <Plus size={16} />
-                                </button>
-                              ) : (
-                                <div className="flex items-center gap-3 rounded-full border border-[#E5E7EB] bg-white px-2 py-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => remove(tier)}
-                                    aria-label={`Kurangi ${tier.nama_kelas}`}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5]"
-                                  >
-                                    <Minus size={14} />
-                                  </button>
-                                  <span className="w-4 text-center text-sm font-bold text-[#1F2937]">
-                                    {qty}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => add(tier)}
-                                    disabled={qty >= maxQty}
-                                    aria-label={`Tambah ${tier.nama_kelas}`}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-white transition-transform duration-300 hover:scale-105 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] disabled:hover:scale-100"
-                                  >
-                                    <Plus size={14} />
-                                  </button>
-                                </div>
-                              )
-                            ) : (
-                              <span className="rounded-full bg-[#E5E7EB] px-5 py-2.5 text-sm font-semibold text-[#9CA3AF]">
-                                {sisa > 0 ? "Ditutup" : "Habis"}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="mt-6 rounded-2xl border border-[#E5E7EB] bg-[#FFFBF5] p-3 sm:p-4">
+                    <VenueMap
+                      tiers={tiers}
+                      selected={selected}
+                      saleOpen={saleOpen}
+                      onSelect={add}
+                    />
                   </div>
                 )}
               </>
@@ -228,17 +160,53 @@ export default function TicketSelection() {
             <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_40px_rgba(31,41,55,0.06)]">
               <h2 className="text-base font-bold text-[#1F2937]">Detail Pemesanan</h2>
 
-              {selectedTier && totalTickets > 0 && (
-                <div className="mt-4 flex flex-col gap-2 border-b border-[#E5E7EB] pb-4">
-                  <div className="flex items-center justify-between text-sm text-[#6B7280]">
-                    <span>
-                      {selectedTier.nama_kelas} × {totalTickets}
-                    </span>
-                    <span className="font-semibold text-[#1F2937]">
+              {selectedTier && selected && totalTickets > 0 ? (
+                <div className="mt-4 flex flex-col gap-3 border-b border-[#E5E7EB] pb-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-[#1F2937]">
+                        {selectedTier.nama_kelas}
+                      </p>
+                      <p className="text-xs text-[#6B7280]">
+                        {formatRupiah(selectedTier.harga)} / tiket · sisa {sisaOf(selectedTier)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-[#1F2937]">
                       {formatRupiah(totalPrice)}
                     </span>
                   </div>
+
+                  {/* Atur jumlah tiket */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[#6B7280]">Jumlah tiket</span>
+                    <div className="flex items-center gap-3 rounded-full border border-[#E5E7EB] bg-white px-2 py-1.5">
+                      <button
+                        type="button"
+                        onClick={() => remove(selectedTier)}
+                        aria-label={`Kurangi ${selectedTier.nama_kelas}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5]"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-4 text-center text-sm font-bold text-[#1F2937]">
+                        {selected.qty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => add(selectedTier)}
+                        disabled={selected.qty >= maxQty}
+                        aria-label={`Tambah ${selectedTier.nama_kelas}`}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-white transition-transform duration-300 hover:scale-105 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] disabled:hover:scale-100"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                <p className="mt-4 text-sm text-[#9CA3AF]">
+                  Belum ada tiket dipilih. Klik zona di denah untuk memulai.
+                </p>
               )}
 
               <div className="mt-4 flex flex-col items-end gap-0.5 text-right">
