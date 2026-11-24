@@ -57,6 +57,8 @@ export type EventItem = {
   poster: string | null;
   artis_id: number;
     status: "draft" | "aktif" | "ditutup" | "selesai";
+  /** Kunci denah venue (arena | stadium | theater | club). Kosong = ditebak dari lokasi. */
+  venue_layout?: string | null;
   artis?: Artis;
   kategori_tiket?: KategoriTiket[];
 };

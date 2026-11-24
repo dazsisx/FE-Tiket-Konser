@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { RotateCw, Plus, Minus } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import VenueMap from "@/components/ui/VenueMap";
+import { resolveLayout } from "@/utils/venueLayouts";
 import {
   fetchEventById,
   formatRupiah,
@@ -144,6 +145,7 @@ export default function TicketSelection() {
                 ) : (
                   <div className="mt-6 rounded-2xl border border-[#E5E7EB] bg-[#FFFBF5] p-3 sm:p-4">
                     <VenueMap
+                      layout={resolveLayout(event)}
                       tiers={tiers}
                       selected={selected}
                       saleOpen={saleOpen}

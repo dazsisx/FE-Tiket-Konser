@@ -2,19 +2,23 @@
 
 import { useId } from "react";
 import { formatRupiah, type KategoriTiket } from "@/utils/api";
+import type { RectDef, VenueLayout } from "@/utils/venueLayouts";
 
 /**
- * Denah arena per zona. Setiap zona dipetakan ke satu kategori tiket dari API
- * lewat kata kunci pada `nama_kelas` (lihat GROUPS). Klik zona = tambah 1 tiket.
+ * Denah per venue. Bentuk denah (zona, panggung, gate) datang dari `layout`
+ * (lihat utils/venueLayouts.ts), jadi tiap event bisa punya denah berbeda.
  *
- * Kategori yang namanya tidak cocok dengan kata kunci apa pun mengisi zona yang
- * masih kosong (FALLBACK_ORDER). Kalau kategori lebih banyak dari zona, sisanya
- * muncul sebagai tombol "Kategori lain" di bawah denah.
+ * Tiap zona dipetakan ke satu kategori tiket dari API lewat kata kunci pada
+ * `nama_kelas` (lihat GROUPS). Kategori yang namanya tidak cocok mengisi zona
+ * kosong sesuai `layout.fallbackOrder`. Kategori yang tidak kebagian zona
+ * (atau yang grupnya tidak ada di layout ini) muncul sebagai tombol
+ * "Kategori lain" di bawah denah, jadi tidak ada kategori yang hilang.
  */
 
 type Selection = { id: number; qty: number } | null;
 
 type Props = {
+  layout: VenueLayout;
   tiers: KategoriTiket[];
   selected: Selection;
   onSelect: (tier: KategoriTiket) => void;
@@ -45,37 +49,6 @@ const GROUPS: {
   { key: "festival", title: "FESTIVAL",  match: ["festival", "general", "reguler", "regular", "umum", "standing"], fill: "#0F766E", text: "#FFFFFF", pattern: "dots" },
 ];
 
-// Urutan zona yang diisi kategori "sisa" (nama tidak cocok kata kunci mana pun).
-const FALLBACK_ORDER = ["festival", "pit", "sayap", "balkon", "lounge"];
-
-type LabelDef = {
-  type: "line2" | "stack";
-  x: number;
-  y: number;
-  rot?: number;
-  ns: number; // ukuran nama
-  py: number; // posisi y baris harga
-  ps: number; // ukuran harga
-  sy?: number; // posisi y baris sisa (stack)
-  ss?: number; // ukuran sisa (stack)
-};
-
-// Bentuk zona: path SVG di viewBox 900x650.
-const ZONES: { id: string; group: string; d: string; badge: [number, number]; label: LabelDef }[] = [
-  { id: "pit", group: "pit", d: "M300,104 L600,104 L640,270 L260,270 Z", badge: [582, 142],
-    label: { type: "line2", x: 450, y: 248, ns: 20, py: 17, ps: 12 } },
-  { id: "festival", group: "festival", d: "M258,278 L642,278 L678,430 L222,430 Z", badge: [622, 312],
-    label: { type: "stack", x: 450, y: 338, ns: 36, py: 28, ps: 18, sy: 50, ss: 14 } },
-  { id: "sayap-kiri", group: "sayap", d: "M286,120 L212,430 L102,430 L176,120 Z", badge: [221, 165],
-    label: { type: "stack", x: 194, y: 290, rot: -76.6, ns: 24, py: 22, ps: 14, sy: 41, ss: 13 } },
-  { id: "sayap-kanan", group: "sayap", d: "M614,120 L688,430 L798,430 L724,120 Z", badge: [679, 165],
-    label: { type: "stack", x: 706, y: 290, rot: 76.6, ns: 24, py: 22, ps: 14, sy: 41, ss: 13 } },
-  { id: "lounge", group: "lounge", d: "M222,438 L678,438 L689,484 L211,484 Z", badge: [650, 461],
-    label: { type: "line2", x: 450, y: 457, ns: 18, py: 16, ps: 12 } },
-  { id: "balkon", group: "balkon", d: "M130,514 Q450,556 770,514 L792,598 Q450,648 108,598 Z", badge: [700, 566],
-    label: { type: "stack", x: 450, y: 572, ns: 24, py: 22, ps: 15, sy: 40, ss: 13 } },
-];
-
 const INK = "#1F2937";
 const MUTED = "#6B7280";
 
@@ -90,8 +63,32 @@ function Gate({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
-export default function VenueMap({ tiers, selected, onSelect, saleOpen = true }: Props) {
+function Block({ r }: { r: RectDef }) {
+  return (
+    <g>
+      <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill={r.fill ?? INK} opacity={r.opacity} />
+      {r.label && (
+        <text
+          x={r.x + r.w / 2}
+          y={r.y + r.label.dy}
+          textAnchor="middle"
+          fontSize={r.label.size}
+          fontWeight={700}
+          letterSpacing={r.label.spacing}
+          fill="#F9FAFB"
+        >
+          {r.label.text}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export default function VenueMap({ layout, tiers, selected, onSelect, saleOpen = true }: Props) {
   const uid = useId().replace(/:/g, "");
+
+  // Grup zona yang benar-benar ada di layout ini
+  const layoutGroups = new Set(layout.zones.map((z) => z.group));
 
   // 1) Tiap grup zona mengambil kategori pertama yang namanya cocok.
   const groupTier = new Map<string, KategoriTiket>();
@@ -99,26 +96,24 @@ export default function VenueMap({ tiers, selected, onSelect, saleOpen = true }:
   for (const t of tiers) {
     const name = t.nama_kelas.toLowerCase();
     const g = GROUPS.find((x) => x.match.some((m) => name.includes(m)));
-    if (g && !groupTier.has(g.key)) groupTier.set(g.key, t);
+    if (g && layoutGroups.has(g.key) && !groupTier.has(g.key)) groupTier.set(g.key, t);
     else leftovers.push(t);
   }
-  // 2) Kategori yang tidak cocok kata kunci mengisi zona yang masih kosong,
-  //    supaya semua kategori tetap bisa dipilih lewat denah.
+  // 2) Sisanya mengisi zona yang masih kosong di layout ini.
   for (const t of leftovers) {
-    const free = FALLBACK_ORDER.find((k) => !groupTier.has(k));
+    const free = layout.fallbackOrder.find((k) => layoutGroups.has(k) && !groupTier.has(k));
     if (free) groupTier.set(free, t);
   }
   const onMapIds = new Set(Array.from(groupTier.values()).map((t) => t.id));
-  // Hanya terjadi kalau kategori lebih banyak dari jumlah zona.
   const offMap = tiers.filter((t) => !onMapIds.has(t.id));
 
   return (
     <div>
       <svg
-        viewBox="0 0 900 650"
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
         className="block h-auto w-full"
         role="group"
-        aria-label="Denah zona venue"
+        aria-label={`Denah zona ${layout.name}`}
       >
         <defs>
           <pattern id={`${uid}-dots`} width="16" height="16" patternUnits="userSpaceOnUse">
@@ -135,17 +130,25 @@ export default function VenueMap({ tiers, selected, onSelect, saleOpen = true }:
 
         {/* Panggung */}
         <g aria-hidden="true" pointerEvents="none">
-          <rect x={214} y={28} width={18} height={62} rx={2} fill={INK} opacity={0.9} />
-          <rect x={668} y={28} width={18} height={62} rx={2} fill={INK} opacity={0.9} />
-          <path d="M300,22 L600,22 L648,94 L252,94 Z" fill={INK} />
-          <text x={450} y={60} textAnchor="middle" fontSize={24} fontWeight={700} letterSpacing={7} fill="#F9FAFB">
+          <path d={layout.stage.d} fill={INK} />
+          <text
+            x={layout.stage.label.x}
+            y={layout.stage.label.y}
+            textAnchor="middle"
+            fontSize={layout.stage.label.size}
+            fontWeight={700}
+            letterSpacing={layout.stage.label.spacing}
+            fill="#F9FAFB"
+          >
             PANGGUNG
           </text>
-          <rect x={330} y={76} width={240} height={3} fill="#F9FAFB" opacity={0.5} />
+          {layout.stage.blocks?.map((r, i) => (
+            <Block key={`stage-${i}`} r={r} />
+          ))}
         </g>
 
         {/* Zona */}
-        {ZONES.map((zone) => {
+        {layout.zones.map((zone) => {
           const grp = GROUPS.find((g) => g.key === zone.group)!;
           const tier = groupTier.get(zone.group);
           const sisa = tier ? sisaOf(tier) : 0;
@@ -230,21 +233,18 @@ export default function VenueMap({ tiers, selected, onSelect, saleOpen = true }:
           );
         })}
 
-        {/* Runway, FOH, pintu masuk */}
+        {/* Elemen di atas zona (runway, FOH) + pintu masuk */}
         <g aria-hidden="true" pointerEvents="none">
-          <rect x={438} y={94} width={24} height={104} fill={INK} />
-          <rect x={408} y={198} width={84} height={22} rx={3} fill={INK} />
-          <rect x={410} y={394} width={80} height={28} rx={3} fill={INK} />
-          <text x={450} y={413} textAnchor="middle" fontSize={15} fontWeight={700} letterSpacing={1.5} fill="#F9FAFB">
-            FOH
-          </text>
+          {layout.blocks?.map((r, i) => (
+            <Block key={`block-${i}`} r={r} />
+          ))}
         </g>
-        <Gate x={118} y={444} text="GATE A" />
-        <Gate x={694} y={444} text="GATE B" />
-        <Gate x={406} y={498} text="GATE C" />
+        {layout.gates.map((g) => (
+          <Gate key={g.text} x={g.x} y={g.y} text={g.text} />
+        ))}
 
         {/* Jumlah tiket yang dipilih */}
-        {ZONES.map((zone) => {
+        {layout.zones.map((zone) => {
           const tier = groupTier.get(zone.group);
           const qty = tier && selected?.id === tier.id ? selected.qty : 0;
           if (qty === 0) return null;
