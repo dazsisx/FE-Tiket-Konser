@@ -1,35 +1,115 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, Info, MapPin, User } from "lucide-react";
+import { Big_Shoulders } from "next/font/google";
+import { ArrowRight, CalendarDays, Check, Info, MapPin, ShieldCheck, Ticket, User } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createOrder,
   fetchEventById,
-  formatJam,
   formatRupiah,
-  formatTanggal,
+  getImageUrl,
   type EventItem,
 } from "@/utils/api";
+import { KATEGORI_BY_SLUG, formatHariTanggal, formatJamWib, kategoriOf } from "@/utils/kategori";
+import styles from "./checkout.module.css";
+
+/**
+ * Checkout. Logika (wajib login, hanya role pelanggan, validasi query,
+ * cek kuota, createOrder -> redirect Midtrans) tidak berubah dari versi
+ * sebelumnya; hanya tampilan yang disamakan dengan landing, halaman
+ * kategori, detail event, dan pilih tiket.
+ */
+
+const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 const MAX_TICKETS_PER_ORDER = 5;
 
+const n = (i: number) => ({ "--n": i }) as CSSProperties;
+
+function Shell({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`${display.variable} ${styles.root} ${className}`}>
+      <div className={styles.grain} aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
 function Notice({ title, message, backHref }: { title: string; message: string; backHref: string }) {
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
-      <div className="mx-auto max-w-xl px-4 text-center">
-        <h1 className="text-xl font-bold text-[#1F2937]">{title}</h1>
-        <p className="mt-2 text-sm text-[#6B7280]">{message}</p>
-        <BackButton
-          fallbackHref={backHref}
-          showIcon={false}
-          className="mt-6 inline-flex rounded-full bg-[#0F766E] px-6 py-3 text-sm font-bold text-white hover:bg-[#0D9488]"
-        />
+    <Shell>
+      <div className={styles.noticeWrap}>
+        <div className={styles.noticeCard}>
+          <span className={styles.noticeIcon}>
+            <Info size={22} aria-hidden="true" />
+          </span>
+          <h1 className={`${styles.display} ${styles.noticeTitle}`}>{title}</h1>
+          <p className={styles.noticeText}>{message}</p>
+          <BackButton fallbackHref={backHref} showIcon={false} className={styles.noticeBtn} />
+        </div>
       </div>
-    </div>
+    </Shell>
+  );
+}
+
+function CheckoutSkeleton() {
+  return (
+    <Shell>
+      <div className={styles.content}>
+        <header className={`${styles.hero} pt-6 pb-9 sm:pt-8 sm:pb-12`}>
+          <div className={styles.heroShade} aria-hidden="true" />
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="h-9 w-28 animate-pulse rounded-full bg-white/15" aria-hidden="true" />
+            <div className="mt-8 space-y-3" aria-hidden="true">
+              <div className="h-4 w-24 animate-pulse rounded bg-white/15" />
+              <div className="h-12 w-2/3 animate-pulse rounded bg-white/15" />
+            </div>
+          </div>
+        </header>
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8 lg:pt-10" aria-hidden="true">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
+            <div className="order-2 space-y-5 lg:order-1">
+              <div className={`${styles.skel} h-8 w-1/2`} />
+              <div className={`${styles.skel} h-32`} />
+              <div className={`${styles.skel} h-32`} />
+              <div className={`${styles.skel} h-40`} />
+            </div>
+            <div className={`${styles.skel} order-1 h-80 lg:order-2`} />
+          </div>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+function Card({
+  i,
+  title,
+  icon,
+  action,
+  children,
+}: {
+  i: number;
+  title: string;
+  icon: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`${styles.card} ${styles.in}`} style={n(i)}>
+      <header className={styles.cardHead}>
+        <span className={styles.cardIcon} aria-hidden="true">
+          {icon}
+        </span>
+        <h2 className={`${styles.display} ${styles.cardTitle}`}>{title}</h2>
+        {action}
+      </header>
+      <div className={styles.cardBody}>{children}</div>
+    </section>
   );
 }
 
@@ -75,7 +155,7 @@ function CheckoutContent() {
   }, [slug]);
 
   if (authLoading || !user || loading) {
-    return <div className="min-h-screen bg-white pt-24 sm:pt-32" />;
+    return <CheckoutSkeleton />;
   }
 
   if (user.role !== "pelanggan") {
@@ -92,14 +172,14 @@ function CheckoutContent() {
     return <Notice title="Event tidak ditemukan" message={loadError ?? "Event tidak tersedia."} backHref="/" />;
   }
 
-  const kategori = event.kategori_tiket?.find((k) => k.id === kategoriId);
+  const tier = event.kategori_tiket?.find((k) => k.id === kategoriId);
   const paramsValid =
     Number.isInteger(kategoriId) &&
     Number.isInteger(jumlah) &&
     jumlah >= 1 &&
     jumlah <= MAX_TICKETS_PER_ORDER;
 
-  if (!paramsValid || !kategori) {
+  if (!paramsValid || !tier) {
     return (
       <Notice
         title="Pilihan tiket tidak valid"
@@ -119,11 +199,24 @@ function CheckoutContent() {
     );
   }
 
-  const sisa = Math.max(0, kategori.sisa_kuota ?? kategori.kuota - kategori.terjual);
-  const harga = parseFloat(kategori.harga);
+  const sisa = Math.max(0, tier.sisa_kuota ?? tier.kuota - tier.terjual);
+  const harga = parseFloat(tier.harga);
   const total = harga * jumlah;
   const kuotaCukup = jumlah <= sisa;
-  const canPay = agreeTerms && agreePrivacy && kuotaCukup && !isSubmitting;
+  const agreedAll = agreeTerms && agreePrivacy;
+  const canPay = agreedAll && kuotaCukup && !isSubmitting;
+
+  const posterUrl = getImageUrl(event.poster);
+  const eventKategori = KATEGORI_BY_SLUG[kategoriOf(event)];
+  const jam = formatJamWib(event.tanggal);
+  const initials =
+    user.nama
+      .trim()
+      .split(/\s+/)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
 
   const handlePay = async () => {
     if (!canPay) return;
@@ -132,7 +225,7 @@ function CheckoutContent() {
     try {
       const order = await createOrder({
         event_id: event.id,
-        kategori_tiket_id: kategori.id,
+        kategori_tiket_id: tier.id,
         jumlah,
       });
       if (!order.payment_url) throw new Error("Sesi pembayaran belum tersedia. Silakan coba lagi.");
@@ -144,160 +237,241 @@ function CheckoutContent() {
     }
   };
 
-  const infoCard = (title: string, children: ReactNode) => (
-    <div className="mt-6 rounded-2xl border border-[#E5E7EB]">
-      <div className="border-b border-[#E5E7EB] px-6 py-4">
-        <h2 className="text-base font-bold text-[#1F2937]">{title}</h2>
-      </div>
-      <div className="px-6 py-5 text-sm text-[#6B7280]">{children}</div>
-    </div>
+  const payLabel = isSubmitting ? (
+    "Memproses..."
+  ) : (
+    <>
+      Buat Pesanan <ArrowRight size={18} aria-hidden="true" />
+    </>
   );
 
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          {/* ===== Kolom kiri ===== */}
-          <div className="lg:min-w-0 lg:flex-1">
-            <BackButton fallbackHref={backHref} />
+    <Shell className="pb-28 lg:pb-20">
+      <div className={styles.content}>
+        {/* ===== hero ringkas ===== */}
+        <header className={`${styles.hero} pt-6 pb-9 sm:pt-8 sm:pb-12`}>
+          {posterUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={posterUrl} alt="" aria-hidden="true" className={styles.backdrop} />
+          )}
+          <div className={styles.heroShade} aria-hidden="true" />
 
-            <p className="mt-3 text-sm text-[#6B7280]">
-              Langkah 2 dari 3 &middot;{" "}
-              <span className="font-semibold text-[#1F2937]">Detail Pesanan</span>
-            </p>
-
-            <h1 className="mt-2 text-2xl font-bold text-[#1F2937] sm:text-3xl">{event.nama_event}</h1>
-            <div className="mt-3 flex flex-col gap-1.5 text-sm text-[#6B7280]">
-              <span className="flex items-center gap-2">
-                <CalendarDays size={15} className="shrink-0 text-[#9CA3AF]" />
-                {formatTanggal(event.tanggal)} &middot; {formatJam(event.tanggal)}
-              </span>
-              <span className="flex items-center gap-2">
-                <MapPin size={15} className="shrink-0 text-[#9CA3AF]" />
-                {event.lokasi}
-              </span>
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <BackButton fallbackHref={backHref} className={styles.back} />
+              <ol className={styles.steps} aria-label="Langkah pembelian">
+                <li className={styles.step} data-state="done">
+                  <span className={`${styles.display} ${styles.stepNum}`}>
+                    <Check size={15} aria-hidden="true" />
+                  </span>
+                  Pilih tiket
+                </li>
+                <li className={styles.step} data-state="active" aria-current="step">
+                  <span className={`${styles.display} ${styles.stepNum}`}>02</span>
+                  Checkout
+                </li>
+                <li className={styles.step}>
+                  <span className={`${styles.display} ${styles.stepNum}`}>03</span>
+                  Bayar
+                </li>
+              </ol>
             </div>
 
-            {infoCard(
-              "Data Pembeli",
-              <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F766E]">
-                  <User size={17} />
-                </span>
-                <div>
-                  <p className="font-semibold text-[#1F2937]">{user.nama}</p>
-                  <p>{user.email}</p>
-                  <p className="mt-1 text-xs text-[#9CA3AF]">Pesanan dicatat atas akun yang sedang login.</p>
-                </div>
-              </div>
-            )}
-
-            {infoCard(
-              "Cara Pembayaran",
-              <div className="flex items-start gap-3">
-                <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
-                <p className="leading-relaxed">
-                  Setelah menekan <span className="font-semibold text-[#1F2937]">Buat Pesanan</span>, kamu akan
-                  diarahkan ke halaman pembayaran Midtrans. E-ticket (QR) terbit otomatis setelah pembayaran
-                  berhasil dikonfirmasi.
-                </p>
-              </div>
-            )}
+            <div className="mt-8">
+              <span className={`${styles.kicker} ${styles.in}`} style={n(0)}>
+                {eventKategori.label}
+              </span>
+              <h1 className={`${styles.display} ${styles.title} ${styles.in}`} style={n(1)}>
+                {event.nama_event}
+              </h1>
+              <ul className={`${styles.meta} ${styles.in}`} style={n(2)}>
+                <li className={styles.metaRow}>
+                  <CalendarDays size={16} aria-hidden="true" />
+                  {formatHariTanggal(event.tanggal)}
+                  {jam ? ` · ${jam}` : ""}
+                </li>
+                <li className={styles.metaRow}>
+                  <MapPin size={16} aria-hidden="true" />
+                  {event.lokasi}
+                </li>
+              </ul>
+            </div>
           </div>
+        </header>
 
-          {/* ===== Kolom kanan: ringkasan ===== */}
-          <div className="lg:sticky lg:top-28 lg:w-[380px] lg:shrink-0 [overflow-anchor:none]">
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5">
-              <h2 className="text-base font-bold text-[#1F2937]">Ringkasan Pesanan</h2>
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8 lg:pt-10">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
+            {/* ===== kiri: detail pesanan ===== */}
+            <div className="order-2 min-w-0 lg:order-1">
+              <h2 className={`${styles.display} ${styles.secTitle}`}>Detail pesanan</h2>
+              <span className={styles.secBar} aria-hidden="true" />
+              <p className={`${styles.hint} mt-3`}>
+                Periksa kembali pesananmu sebelum lanjut ke pembayaran.
+              </p>
 
-              <div className="mt-4 flex gap-3">
-                <span className="w-1 shrink-0 rounded-full bg-gradient-to-b from-[#0F766E] to-[#F59E0B]" />
-                <div className="flex flex-1 items-start justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1F2937]">{kategori.nama_kelas}</p>
-                    <p className="text-xs text-[#6B7280]">
-                      {formatRupiah(harga)} × {jumlah}
-                    </p>
+              <div className="mt-6 space-y-5">
+                <Card i={0} title="Data pembeli" icon={<User size={16} />}>
+                  <div className={styles.buyer}>
+                    <span className={`${styles.display} ${styles.avatar}`} aria-hidden="true">
+                      {initials}
+                    </span>
+                    <div className="min-w-0">
+                      <p className={styles.buyerName}>{user.nama}</p>
+                      <p className={styles.buyerMail}>{user.email}</p>
+                      <p className={styles.buyerNote}>Pesanan dicatat atas akun yang sedang login.</p>
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-[#1F2937]">{formatRupiah(total)}</p>
+                </Card>
+
+                <Card
+                  i={1}
+                  title="Tiket dipilih"
+                  icon={<Ticket size={16} />}
+                  action={
+                    <Link href={backHref} className={styles.cardLink}>
+                      Ubah
+                    </Link>
+                  }
+                >
+                  <div className={styles.chosen}>
+                    <span className={styles.chosenBar} aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className={styles.lineName}>{tier.nama_kelas}</p>
+                      <p className={styles.lineSub}>
+                        {formatRupiah(harga)} × {jumlah} tiket · sisa {sisa.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <span className={`${styles.display} ${styles.lineAmt}`}>{formatRupiah(total)}</span>
+                  </div>
+                </Card>
+
+                <Card i={2} title="Cara pembayaran" icon={<ShieldCheck size={16} />}>
+                  <p className={styles.payInfo}>
+                    <Info size={16} className={styles.payIcon} aria-hidden="true" />
+                    <span>
+                      Setelah menekan <strong>Buat Pesanan</strong>, kamu akan diarahkan ke halaman
+                      pembayaran Midtrans. E-ticket (QR) terbit otomatis setelah pembayaran berhasil
+                      dikonfirmasi.
+                    </span>
+                  </p>
+                </Card>
+
+                <Card i={3} title="Persetujuan" icon={<Check size={16} />}>
+                  <div className={styles.agreeList}>
+                    <label className={styles.agree} data-checked={agreeTerms}>
+                      <input
+                        type="checkbox"
+                        checked={agreeTerms}
+                        onChange={(e) => setAgreeTerms(e.target.checked)}
+                      />
+                      <span>
+                        Saya setuju dengan{" "}
+                        <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                          Syarat &amp; Ketentuan
+                        </Link>{" "}
+                        yang berlaku di DR Star.
+                      </span>
+                    </label>
+                    <label className={styles.agree} data-checked={agreePrivacy}>
+                      <input
+                        type="checkbox"
+                        checked={agreePrivacy}
+                        onChange={(e) => setAgreePrivacy(e.target.checked)}
+                      />
+                      <span>
+                        Saya menyetujui{" "}
+                        <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                          Kebijakan Privasi &amp; Pemrosesan Data
+                        </Link>{" "}
+                        DR Star.
+                      </span>
+                    </label>
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* ===== kanan: ringkasan pesanan (di mobile tampil paling atas) ===== */}
+            <aside
+              className="order-1 lg:order-2 lg:sticky lg:top-8 lg:h-fit"
+              aria-label="Ringkasan pesanan"
+            >
+              <div className={styles.summary}>
+                <div className={styles.sumTop}>
+                  <p className={styles.sumLabel}>Ringkasan pesanan</p>
+                  <p className={`${styles.display} ${styles.sumEvent}`}>{event.nama_event}</p>
+                </div>
+                <div className={styles.perf} aria-hidden="true" />
+                <div className={styles.sumBottom}>
+                  <div className={styles.line}>
+                    <div className="min-w-0">
+                      <p className={styles.lineName}>{tier.nama_kelas}</p>
+                      <p className={styles.lineSub}>
+                        {jumlah} × {formatRupiah(harga)}
+                      </p>
+                    </div>
+                    <span className={`${styles.display} ${styles.lineAmt}`}>{formatRupiah(total)}</span>
+                  </div>
+
+                  <div className={styles.total}>
+                    <span className={styles.totalLbl}>Total {jumlah} tiket</span>
+                    <span className={`${styles.display} ${styles.totalAmt}`}>{formatRupiah(total)}</span>
+                  </div>
+
+                  {!kuotaCukup && (
+                    <p role="alert" className={styles.alert}>
+                      Sisa kuota kategori ini hanya {sisa} tiket. Kembali dan kurangi jumlahnya.
+                    </p>
+                  )}
+
+                  {submitError && (
+                    <p role="alert" className={`${styles.alert} ${styles.alertDesktop}`}>
+                      {submitError}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => void handlePay()}
+                    disabled={!canPay}
+                    className={`${styles.go} ${styles.goDesktop} mt-5`}
+                  >
+                    {payLabel}
+                  </button>
+
+                  {kuotaCukup && !agreedAll && (
+                    <p className={styles.fine}>Centang kedua persetujuan untuk melanjutkan.</p>
+                  )}
                 </div>
               </div>
-
-              <div className="mt-4 flex items-center justify-between border-t border-[#E5E7EB] pt-4 text-sm">
-                <span className="text-[#6B7280]">Subtotal ({jumlah} tiket)</span>
-                <span className="font-semibold text-[#1F2937]">{formatRupiah(total)}</span>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between border-t border-[#E5E7EB] pt-4">
-                <span className="text-sm font-bold text-[#1F2937]">Total Keseluruhan</span>
-                <span className="text-base font-extrabold text-[#F59E0B]">{formatRupiah(total)}</span>
-              </div>
-
-              {!kuotaCukup && (
-                <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-                  Sisa kuota kategori ini hanya {sisa} tiket. Kembali dan kurangi jumlahnya.
-                </p>
-              )}
-
-              <div className="mt-4 flex flex-col gap-2.5">
-                <label className="flex items-start gap-2.5 text-xs text-[#6B7280]">
-                  <input
-                    type="checkbox"
-                    checked={agreeTerms}
-                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#0F766E]"
-                  />
-                  <span>
-                    Saya setuju dengan{" "}
-                    <Link href="/terms" className="font-semibold text-[#0F766E] hover:text-[#F59E0B]">
-                      Syarat &amp; Ketentuan
-                    </Link>{" "}
-                    yang berlaku di DR Star.
-                  </span>
-                </label>
-                <label className="flex items-start gap-2.5 text-xs text-[#6B7280]">
-                  <input
-                    type="checkbox"
-                    checked={agreePrivacy}
-                    onChange={(e) => setAgreePrivacy(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#0F766E]"
-                  />
-                  <span>
-                    Saya menyetujui{" "}
-                    <Link href="/privacy" className="font-semibold text-[#0F766E] hover:text-[#F59E0B]">
-                      Kebijakan Privasi &amp; Pemrosesan Data
-                    </Link>{" "}
-                    DR Star.
-                  </span>
-                </label>
-              </div>
-
-              {submitError && (
-                <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {submitError}
-                </p>
-              )}
-
-              <button
-                type="button"
-                onClick={() => void handlePay()}
-                disabled={!canPay}
-                className="mt-5 w-full rounded-full py-3 text-sm font-bold text-white transition-all duration-300 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] enabled:bg-[#0F766E] enabled:shadow-[0_10px_26px_rgba(15,118,110,0.28)] enabled:hover:-translate-y-0.5 enabled:hover:bg-[#0D9488]"
-              >
-                {isSubmitting ? "Memproses..." : "Buat Pesanan"}
-              </button>
-            </div>
+            </aside>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* bar total tetap di bawah (mobile & tablet) */}
+      <div className={styles.dock}>
+        {submitError && (
+          <p role="alert" className={styles.dockErr}>
+            {submitError}
+          </p>
+        )}
+        <div>
+          <div className={styles.dockLbl}>Total {jumlah} tiket</div>
+          <div className={`${styles.display} ${styles.dockAmt}`}>{formatRupiah(total)}</div>
+        </div>
+        <button type="button" onClick={() => void handlePay()} disabled={!canPay} className={styles.go}>
+          {payLabel}
+        </button>
+      </div>
+    </Shell>
   );
 }
 
 // useSearchParams harus berada di dalam Suspense
 export default function OrderCheckout() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white pt-24 sm:pt-32" />}>
+    <Suspense fallback={<CheckoutSkeleton />}>
       <CheckoutContent />
     </Suspense>
   );

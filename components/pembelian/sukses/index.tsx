@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Big_Shoulders } from "next/font/google";
 import {
   CheckCircle2,
   Clock,
@@ -20,6 +21,8 @@ import {
   HelpCircle,
   Mail,
   Phone,
+  Ticket,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -31,6 +34,17 @@ import {
   uploadPaymentProof,
   type PesananSaya,
 } from "@/utils/api";
+import styles from "./sukses.module.css";
+
+/**
+ * Status pesanan. Logika (muat pesanan, salin kode, unggah bukti, QR per
+ * tiket, periksa status) tidak berubah dari versi sebelumnya; hanya
+ * tampilan yang disamakan dengan landing, kategori, pilih tiket, dan checkout.
+ */
+
+const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+
+const n = (i: number) => ({ "--n": i }) as CSSProperties;
 
 type Stage = "bayar" | "verifikasi" | "lunas" | "ditolak" | "kadaluarsa";
 
@@ -41,40 +55,83 @@ function stageOf(order: PesananSaya): Stage {
   return order.bukti_bayar ? "verifikasi" : "bayar";
 }
 
-const stageInfo: Record<Stage, { title: string; desc: string; tone: string; Icon: typeof CheckCircle2 }> = {
+const stageInfo: Record<
+  Stage,
+  { title: string; desc: string; tone: "gold" | "teal" | "red"; Icon: typeof CheckCircle2 }
+> = {
   bayar: {
     title: "Pesanan Dibuat",
     desc: "Tiketmu sudah dipesan. Selesaikan pembayaran agar e-ticket dapat diterbitkan.",
-    tone: "bg-[#F59E0B]",
+    tone: "gold",
     Icon: Upload,
   },
   verifikasi: {
     title: "Menunggu Verifikasi",
     desc: "Bukti pembayaranmu sudah kami terima. Admin sedang memeriksanya.",
-    tone: "bg-[#F59E0B]",
+    tone: "gold",
     Icon: Clock,
   },
   lunas: {
     title: "Pembayaran Berhasil!",
     desc: "Terima kasih! Pembayaranmu sudah diverifikasi. Setiap tiket punya QR sendiri, tunjukkan QR-nya saat masuk venue.",
-    tone: "bg-[#0F766E]",
+    tone: "teal",
     Icon: CheckCircle2,
   },
   ditolak: {
     title: "Pembayaran Ditolak",
     desc: "Pembayaranmu tidak dapat diverifikasi dan tiket dikembalikan ke stok. Silakan pesan ulang.",
-    tone: "bg-red-500",
+    tone: "red",
     Icon: XCircle,
   },
   kadaluarsa: {
     title: "Pesanan Kedaluwarsa",
     desc: "Pesanan ini sudah kedaluwarsa. Silakan pesan ulang.",
-    tone: "bg-red-500",
+    tone: "red",
     Icon: XCircle,
   },
 };
 
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
+
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className={`${display.variable} ${styles.root} pb-16 lg:pb-20`}>
+      <div className={styles.grain} aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
+function SuksesSkeleton() {
+  return (
+    <Shell>
+      <div className={styles.content}>
+        <header className={`${styles.hero} pt-6 pb-9 sm:pt-8 sm:pb-12`}>
+          <div className={styles.heroShade} aria-hidden="true" />
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="h-9 w-28 animate-pulse rounded-full bg-white/15" aria-hidden="true" />
+            <div className="mt-8 flex items-start gap-4" aria-hidden="true">
+              <div className="h-14 w-14 shrink-0 animate-pulse rounded-full bg-white/15" />
+              <div className="flex-1 space-y-3">
+                <div className="h-4 w-24 animate-pulse rounded bg-white/15" />
+                <div className="h-12 w-2/3 animate-pulse rounded bg-white/15" />
+              </div>
+            </div>
+          </div>
+        </header>
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8 lg:pt-10" aria-hidden="true">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:gap-10">
+            <div className="order-2 space-y-5 lg:order-1">
+              <div className={`${styles.skel} h-44`} />
+              <div className={`${styles.skel} h-56`} />
+            </div>
+            <div className={`${styles.skel} order-1 h-72 lg:order-2`} />
+          </div>
+        </div>
+      </div>
+    </Shell>
+  );
+}
 
 function SuksesContent() {
   const router = useRouter();
@@ -165,23 +222,25 @@ function SuksesContent() {
   };
 
   if (authLoading || !user || loading) {
-    return <div className="min-h-screen bg-white pt-24 sm:pt-32" />;
+    return <SuksesSkeleton />;
   }
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
-        <div className="mx-auto max-w-xl px-4 text-center">
-          <h1 className="text-xl font-bold text-[#1F2937]">Pesanan tidak ditemukan</h1>
-          <p className="mt-2 text-sm text-[#6B7280]">{error ?? "Pesanan tidak tersedia."}</p>
-          <Link
-            href="/"
-            className="mt-6 inline-flex rounded-full bg-[#0F766E] px-6 py-3 text-sm font-bold text-white hover:bg-[#0D9488]"
-          >
-            Kembali ke Beranda
-          </Link>
+      <Shell>
+        <div className={styles.noticeWrap}>
+          <div className={styles.noticeCard}>
+            <span className={styles.noticeIcon}>
+              <Info size={22} aria-hidden="true" />
+            </span>
+            <h1 className={`${styles.display} ${styles.noticeTitle}`}>Pesanan tidak ditemukan</h1>
+            <p className={styles.noticeText}>{error ?? "Pesanan tidak tersedia."}</p>
+            <Link href="/" className={styles.noticeBtn}>
+              Kembali ke Beranda
+            </Link>
+          </div>
         </div>
-      </div>
+      </Shell>
     );
   }
 
@@ -193,259 +252,147 @@ function SuksesContent() {
   const bookingCode = order.kode_tiket ?? "-";
   const tickets = order.tiket ?? [];
 
+  // Langkah 03: selesai kalau lunas, gagal kalau ditolak/kedaluwarsa, selain itu sedang berjalan
+  const step3 = stage === "lunas" ? "done" : stage === "ditolak" || stage === "kadaluarsa" ? "fail" : "active";
+
+  const detailRows: [string, string][] = [
+    ["Nama Pelanggan", user.nama],
+    ["Kode Booking", bookingCode],
+    ["Tanggal Pemesanan", orderDate ? `${formatTanggal(orderDate)}, ${formatJam(orderDate)}` : "-"],
+    ["Tipe Tiket", order.kategori_tiket?.nama_kelas ?? "-"],
+    ["Jumlah Tiket", `${order.jumlah} Tiket`],
+  ];
+
+  const refreshIcon = <RefreshCw size={15} aria-hidden="true" />;
+
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        {/* ===== Header status ===== */}
-        <div className="flex items-start gap-4">
-          <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-[0_10px_26px_rgba(31,41,55,0.18)] ${tone}`}>
-            <Icon size={28} />
-          </span>
-          <div>
-            <h1 className="text-2xl font-extrabold text-[#1F2937] sm:text-3xl">{title}</h1>
-            <p className="mt-1 text-sm leading-relaxed text-[#6B7280]">{desc}</p>
-          </div>
-        </div>
+    <Shell>
+      <div className={styles.content}>
+        {/* ===== hero status ===== */}
+        <header className={`${styles.hero} pt-6 pb-9 sm:pt-8 sm:pb-12`}>
+          {posterUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={posterUrl} alt="" aria-hidden="true" className={styles.backdrop} />
+          )}
+          <div className={styles.heroShade} aria-hidden="true" />
 
-        {/* ===== Konten utama: 2 kolom ===== */}
-        <div className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-start">
-          {/* ----- Kolom kiri: detail event & pemesanan ----- */}
-          <div className="rounded-2xl border border-[#E5E7EB] p-6 lg:min-w-0 lg:flex-1">
-            <div className="flex flex-col gap-5 sm:flex-row">
-              <div className="flex h-44 w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FFFBF5] sm:h-36 sm:w-28">
-                {posterUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={posterUrl} alt={event?.nama_event ?? "Poster event"} className="h-full w-full object-cover" />
-                ) : (
-                  <CalendarDays size={28} className="text-[#9CA3AF]" />
-                )}
-              </div>
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <Link href="/" className={styles.back}>
+                <Home size={15} aria-hidden="true" />
+                Beranda
+              </Link>
+              <ol className={styles.steps} aria-label="Langkah pembelian">
+                <li className={styles.step} data-state="done">
+                  <span className={`${styles.display} ${styles.stepNum}`}>
+                    <Check size={15} aria-hidden="true" />
+                  </span>
+                  Pilih tiket
+                </li>
+                <li className={styles.step} data-state="done">
+                  <span className={`${styles.display} ${styles.stepNum}`}>
+                    <Check size={15} aria-hidden="true" />
+                  </span>
+                  Checkout
+                </li>
+                <li
+                  className={styles.step}
+                  data-state={step3}
+                  aria-current={step3 === "active" ? "step" : undefined}
+                >
+                  <span className={`${styles.display} ${styles.stepNum}`}>
+                    {step3 === "done" ? (
+                      <Check size={15} aria-hidden="true" />
+                    ) : step3 === "fail" ? (
+                      <X size={15} aria-hidden="true" />
+                    ) : (
+                      "03"
+                    )}
+                  </span>
+                  Bayar
+                </li>
+              </ol>
+            </div>
 
-              <div>
-                <span className="inline-flex items-center rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-semibold text-[#0F766E]">
-                  Konser
+            <div className={`${styles.heroMain} mt-8`}>
+              <span className={`${styles.statusIcon} ${styles.in}`} data-tone={tone} style={n(0)}>
+                <Icon size={30} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <span className={`${styles.kicker} ${styles.in}`} style={n(1)}>
+                  Status pesanan
                 </span>
-                <h2 className="mt-2 text-xl font-extrabold text-[#1F2937]">{event?.nama_event ?? "-"}</h2>
-
-                {event && (
-                  <div className="mt-3 flex flex-col gap-1.5 text-sm text-[#6B7280]">
-                    <span className="flex items-center gap-2">
-                      <CalendarDays size={15} className="shrink-0 text-[#9CA3AF]" />
-                      {formatTanggal(event.tanggal)}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <Clock size={15} className="shrink-0 text-[#9CA3AF]" />
-                      {formatJam(event.tanggal)}
-                    </span>
-                    <span className="flex items-start gap-2">
-                      <MapPin size={15} className="mt-0.5 shrink-0 text-[#9CA3AF]" />
-                      <span className="font-medium text-[#1F2937]">{event.lokasi}</span>
-                    </span>
-                  </div>
-                )}
+                <h1 className={`${styles.display} ${styles.title} ${styles.in}`} style={n(2)}>
+                  {title}
+                </h1>
+                <p className={`${styles.lead} ${styles.in}`} style={n(3)}>
+                  {desc}
+                </p>
               </div>
-            </div>
-
-            <div className="mt-6 border-t border-[#E5E7EB] pt-6">
-              <h3 className="text-base font-bold text-[#1F2937]">Detail Pemesanan</h3>
-
-              <dl className="mt-4 flex flex-col gap-3 text-sm">
-                {[
-                  ["Nama Pelanggan", user.nama],
-                  ["Kode Booking", bookingCode],
-                  ["Tanggal Pemesanan", orderDate ? `${formatTanggal(orderDate)}, ${formatJam(orderDate)}` : "-"],
-                  ["Tipe Tiket", order.kategori_tiket?.nama_kelas ?? "-"],
-                  ["Jumlah Tiket", `${order.jumlah} Tiket`],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-4">
-                    <dt className="text-[#6B7280]">{label}</dt>
-                    <dd className="text-right font-semibold text-[#1F2937]">{value}</dd>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between border-t border-[#E5E7EB] pt-3">
-                  <dt className="font-semibold text-[#1F2937]">Total Harga</dt>
-                  <dd className="text-lg font-extrabold text-[#F59E0B]">{formatRupiah(order.total_harga)}</dd>
-                </div>
-              </dl>
             </div>
           </div>
+        </header>
 
-          {/* ----- Kolom kanan: kode booking + aksi sesuai status ----- */}
-          <div className="rounded-2xl border border-[#E5E7EB] p-6 lg:w-[380px] lg:shrink-0">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm text-[#6B7280]">Kode Booking</p>
-                <p className="mt-1 text-lg font-extrabold tracking-wide text-[#1F2937]">{bookingCode}</p>
-              </div>
-              {order.kode_tiket && (
-                <button
-                  type="button"
-                  onClick={() => void handleCopy(order.kode_tiket as string)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#0F766E] px-3 py-1.5 text-xs font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5]"
-                >
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                  {copied ? "Tersalin" : "Salin"}
-                </button>
-              )}
-            </div>
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8 lg:pt-10">
+          {/* ===== e-ticket (hanya setelah lunas) ===== */}
+          {stage === "lunas" && (
+            <section className="mb-10 lg:mb-12" aria-label="E-ticket">
+              <h2 className={`${styles.display} ${styles.secTitle}`}>E-ticket kamu</h2>
+              <span className={styles.secBar} aria-hidden="true" />
+              <p className={`${styles.hint} mt-3`}>
+                Tunjukkan QR ini saat masuk venue. Satu QR berlaku untuk satu tiket.
+              </p>
 
-            {/* --- Belum bayar: unggah bukti --- */}
-            {stage === "bayar" && order.payment_url && (
-              <div className="mt-5">
-                <div className="flex items-start gap-3 rounded-xl border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3.5 text-xs leading-relaxed text-[#6B7280]">
-                  <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
-                  <p>
-                    Selesaikan pembayaran sebesar{" "}
-                    <span className="font-semibold text-[#1F2937]">{formatRupiah(order.total_harga)}</span> melalui
-                    halaman pembayaran Midtrans. Tiket akan aktif otomatis setelah pembayaran terkonfirmasi.
-                  </p>
+              {tickets.length === 0 ? (
+                <div className={styles.qrEmpty}>
+                  <p>Tiketmu sedang disiapkan. Coba muat ulang halaman.</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleRefresh()}
+                    disabled={refreshing}
+                    className={`${styles.ghost} ${styles.ghostTeal} ${refreshing ? styles.spin : ""}`}
+                  >
+                    {refreshIcon}
+                    {refreshing ? "Memeriksa..." : "Muat Ulang"}
+                  </button>
                 </div>
-                <a
-                  href={order.payment_url}
-                  className="mt-4 flex w-full items-center justify-center rounded-full bg-[#0F766E] py-3 text-sm font-bold text-white shadow-[0_10px_26px_rgba(15,118,110,0.28)] transition-colors hover:bg-[#0D9488]"
-                >
-                  Lanjutkan Pembayaran
-                </a>
-                <button
-                  type="button"
-                  onClick={() => void handleRefresh()}
-                  disabled={refreshing}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-[#0F766E] py-3 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5] disabled:opacity-60"
-                >
-                  <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
-                  {refreshing ? "Memeriksa..." : "Periksa Status Pembayaran"}
-                </button>
-              </div>
-            )}
-
-            {stage === "bayar" && !order.payment_url && (
-              <div className="mt-5">
-                <div className="flex items-start gap-3 rounded-xl border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3.5 text-xs leading-relaxed text-[#6B7280]">
-                  <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
-                  <p>
-                    Lakukan pembayaran sebesar{" "}
-                    <span className="font-semibold text-[#1F2937]">{formatRupiah(order.total_harga)}</span> sesuai
-                    instruksi dari penyelenggara, lalu unggah foto bukti pembayarannya.
-                  </p>
-                </div>
-
-                <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#B7C8BF] p-3 text-sm text-[#475569]">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#EAF4F0] text-[#0F766E]">
-                    <Upload size={18} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">Bukti pembayaran</span>
-                    <span className="block truncate text-xs text-[#6B7280]">{file?.name ?? "JPG, PNG, WEBP, GIF hingga 5 MB"}</span>
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)}
-                    className="sr-only"
-                  />
-                </label>
-
-                {uploadError && (
-                  <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {uploadError}
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => void handleUpload()}
-                  disabled={!file || uploading}
-                  className="mt-4 w-full rounded-full py-3 text-sm font-bold text-white transition-all duration-300 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] enabled:bg-[#0F766E] enabled:shadow-[0_10px_26px_rgba(15,118,110,0.28)] enabled:hover:-translate-y-0.5 enabled:hover:bg-[#0D9488]"
-                >
-                  {uploading ? "Mengunggah..." : "Unggah Bukti Pembayaran"}
-                </button>
-              </div>
-            )}
-
-            {/* --- Menunggu verifikasi --- */}
-            {stage === "verifikasi" && (
-              <div className="mt-5">
-                <div className="flex items-start gap-3 rounded-xl border border-[#F59E0B]/20 bg-[#FFFBEB] px-4 py-3.5 text-xs leading-relaxed text-[#6B7280]">
-                  <Info size={16} className="mt-0.5 shrink-0 text-[#F59E0B]" />
-                  <p>Setelah admin menyetujui pembayaran, QR tiketmu akan muncul di halaman ini.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleRefresh()}
-                  disabled={refreshing}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-[#0F766E] py-3 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5] disabled:opacity-60"
-                >
-                  <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
-                  {refreshing ? "Memeriksa..." : "Periksa Status"}
-                </button>
-              </div>
-            )}
-
-            {/* --- Lunas: satu QR unik per tiket (dari tabel tiket di BE) --- */}
-            {stage === "lunas" && (
-              <>
-                <div className="mt-5 flex items-center gap-3 text-xs font-semibold text-[#9CA3AF]">
-                  <span className="h-px flex-1 bg-[#E5E7EB]" />
-                  Tunjukkan QR ini saat masuk venue
-                  <span className="h-px flex-1 bg-[#E5E7EB]" />
-                </div>
-
-                {tickets.length === 0 ? (
-                  <div className="mt-5 rounded-2xl border border-[#E5E7EB] bg-white p-4 text-center">
-                    <p className="py-10 text-sm text-[#6B7280]">Tiketmu sedang disiapkan. Coba muat ulang halaman.</p>
-                    <button
-                      type="button"
-                      onClick={() => void handleRefresh()}
-                      disabled={refreshing}
-                      className="mb-2 inline-flex items-center justify-center gap-2 rounded-full border border-[#0F766E] px-5 py-2.5 text-sm font-semibold text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5] disabled:opacity-60"
-                    >
-                      <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
-                      {refreshing ? "Memeriksa..." : "Muat Ulang"}
-                    </button>
-                  </div>
-                ) : (
-                  <ul className="mt-5 flex flex-col gap-4">
-                    {tickets.map((t) => (
-                      <li key={t.nomor_urut} className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className="font-bold text-[#1F2937]">
-                            Tiket {t.nomor_urut} dari {order.jumlah}
-                          </span>
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              t.status === "aktif"
-                                ? "bg-[#ECFDF5] text-[#0F766E]"
-                                : t.status === "terpakai"
-                                  ? "bg-[#F3F4F6] text-[#6B7280]"
-                                  : "bg-red-50 text-red-600"
-                            }`}
-                          >
-                            {t.status === "aktif" ? "Aktif" : t.status === "terpakai" ? "Sudah digunakan" : "Dibatalkan"}
-                          </span>
-                        </div>
-
+              ) : (
+                <ul className={styles.qrGrid}>
+                  {tickets.map((t, i) => (
+                    <li key={t.nomor_urut} className={`${styles.qrCard} ${styles.in}`} style={n(i)}>
+                      <div className={styles.qrTop}>
+                        <span className={`${styles.display} ${styles.qrTitle}`}>
+                          Tiket {t.nomor_urut} dari {order.jumlah}
+                        </span>
+                        <span
+                          className={styles.pill}
+                          data-tone={t.status === "aktif" ? "aktif" : t.status === "terpakai" ? "terpakai" : "batal"}
+                        >
+                          {t.status === "aktif" ? "Aktif" : t.status === "terpakai" ? "Sudah digunakan" : "Dibatalkan"}
+                        </span>
+                      </div>
+                      <div className={styles.perf} aria-hidden="true" />
+                      <div className={styles.qrBody}>
                         {t.status === "aktif" && t.qr_code ? (
                           <>
-                            <div className="mt-3 flex items-center justify-center">
+                            <div className={styles.qrImg}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={t.qr_code}
                                 alt={`QR tiket ${t.nomor_urut} dari ${order.jumlah}, kode booking ${bookingCode}`}
-                                className="h-56 w-56 max-w-full"
                               />
                             </div>
                             <a
                               href={t.qr_code}
                               download={`tiket-${bookingCode}-${t.nomor_urut}.png`}
-                              className="mt-3 flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] py-2.5 text-sm font-semibold text-[#1F2937] transition-colors duration-300 hover:bg-[#FFFBF5]"
+                              className={styles.qrDl}
                             >
-                              <Download size={16} />
+                              <Download size={16} aria-hidden="true" />
                               Unduh QR Tiket {t.nomor_urut}
                             </a>
                           </>
                         ) : (
-                          <p className="py-8 text-center text-sm text-[#6B7280]">
+                          <p className={styles.qrMsg}>
                             {t.status === "terpakai"
                               ? `Tiket ini sudah dipakai${
                                   t.digunakan_pada
@@ -455,79 +402,253 @@ function SuksesContent() {
                               : "Tiket ini sudah dibatalkan dan tidak dapat digunakan."}
                           </p>
                         )}
-                      </li>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_400px] lg:gap-10">
+            {/* ===== kiri: detail event & pemesanan ===== */}
+            <div className="order-2 min-w-0 space-y-5 lg:order-1">
+              <section className={`${styles.card} ${styles.in}`} style={n(0)}>
+                <div className={styles.eventRow}>
+                  <div className={styles.poster}>
+                    {posterUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={posterUrl} alt={event?.nama_event ?? "Poster event"} />
+                    ) : (
+                      <CalendarDays size={28} aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={styles.eventLabel}>Event</p>
+                    <h2 className={`${styles.display} ${styles.eventName}`}>{event?.nama_event ?? "-"}</h2>
+                    {event && (
+                      <ul className={styles.eventMeta}>
+                        <li>
+                          <CalendarDays size={15} aria-hidden="true" />
+                          {formatTanggal(event.tanggal)}
+                        </li>
+                        <li>
+                          <Clock size={15} aria-hidden="true" />
+                          {formatJam(event.tanggal)}
+                        </li>
+                        <li>
+                          <MapPin size={15} aria-hidden="true" />
+                          <strong>{event.lokasi}</strong>
+                        </li>
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className={`${styles.card} ${styles.in}`} style={n(1)}>
+                <header className={styles.cardHead}>
+                  <span className={styles.cardIcon} aria-hidden="true">
+                    <Ticket size={16} />
+                  </span>
+                  <h2 className={`${styles.display} ${styles.cardTitle}`}>Detail pemesanan</h2>
+                </header>
+                <div className={styles.cardBody}>
+                  <dl className={styles.rows}>
+                    {detailRows.map(([label, value]) => (
+                      <div key={label} className={styles.row}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
                     ))}
-                  </ul>
-                )}
-              </>
-            )}
-
-            {/* --- Ditolak / kedaluwarsa --- */}
-            {(stage === "ditolak" || stage === "kadaluarsa") && (
-              <Link
-                href={`/pembelian/tiket/${order.event_id}`}
-                className="mt-5 flex items-center justify-center gap-2 rounded-full bg-[#0F766E] py-3 text-sm font-bold text-white shadow-[0_10px_26px_rgba(15,118,110,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#0D9488]"
-              >
-                Pesan Ulang
-              </Link>
-            )}
-
-            <Link
-              href="/"
-              className="mt-3 flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] py-3 text-sm font-semibold text-[#1F2937] transition-colors duration-300 hover:bg-[#FFFBF5]"
-            >
-              <Home size={16} />
-              Kembali ke Beranda
-            </Link>
-          </div>
-        </div>
-
-        {/* ===== Bantuan ===== */}
-        <div className="mt-6 flex flex-col gap-5 rounded-2xl border border-[#E5E7EB] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F766E]">
-              <MessageCircle size={18} />
-            </span>
-            <div>
-              <p className="text-sm font-bold text-[#1F2937]">Butuh bantuan?</p>
-              <p className="text-xs text-[#6B7280]">Kami siap membantu 24/7</p>
+                    <div className={styles.totalRow}>
+                      <dt>Total Harga</dt>
+                      <dd className={styles.display}>{formatRupiah(order.total_harga)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </section>
             </div>
+
+            {/* ===== kanan: kode booking + aksi sesuai status ===== */}
+            <aside className="order-1 min-w-0 lg:order-2" aria-label="Kode booking dan aksi">
+              <div className={styles.summary}>
+                <div className={styles.sumTop}>
+                  <div className="min-w-0">
+                    <p className={styles.sumLabel}>Kode booking</p>
+                    <p className={`${styles.display} ${styles.code}`}>{bookingCode}</p>
+                  </div>
+                  {order.kode_tiket && (
+                    <button
+                      type="button"
+                      onClick={() => void handleCopy(order.kode_tiket as string)}
+                      className={styles.copy}
+                    >
+                      {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+                      {copied ? "Tersalin" : "Salin"}
+                    </button>
+                  )}
+                </div>
+                <div className={styles.perf} aria-hidden="true" />
+                <div className={styles.sumBottom}>
+                  {/* --- Belum bayar: lanjut ke Midtrans --- */}
+                  {stage === "bayar" && order.payment_url && (
+                    <>
+                      <p className={styles.note}>
+                        <Info size={16} aria-hidden="true" />
+                        <span>
+                          Selesaikan pembayaran sebesar <strong>{formatRupiah(order.total_harga)}</strong> melalui
+                          halaman pembayaran Midtrans. Tiket akan aktif otomatis setelah pembayaran terkonfirmasi.
+                        </span>
+                      </p>
+                      <a href={order.payment_url} className={styles.go}>
+                        Lanjutkan Pembayaran
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void handleRefresh()}
+                        disabled={refreshing}
+                        className={`${styles.ghost} ${styles.ghostTeal} ${refreshing ? styles.spin : ""}`}
+                      >
+                        {refreshIcon}
+                        {refreshing ? "Memeriksa..." : "Periksa Status Pembayaran"}
+                      </button>
+                    </>
+                  )}
+
+                  {/* --- Belum bayar, tanpa payment_url: unggah bukti --- */}
+                  {stage === "bayar" && !order.payment_url && (
+                    <>
+                      <p className={styles.note}>
+                        <Info size={16} aria-hidden="true" />
+                        <span>
+                          Lakukan pembayaran sebesar <strong>{formatRupiah(order.total_harga)}</strong> sesuai
+                          instruksi dari penyelenggara, lalu unggah foto bukti pembayarannya.
+                        </span>
+                      </p>
+
+                      <label className={styles.drop}>
+                        <span className={styles.dropIcon}>
+                          <Upload size={18} aria-hidden="true" />
+                        </span>
+                        <span className={styles.dropText}>
+                          <span className={styles.dropTitle}>Bukti pembayaran</span>
+                          <span className={styles.dropSub}>{file?.name ?? "JPG, PNG, WEBP, GIF hingga 5 MB"}</span>
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)}
+                          className="sr-only"
+                        />
+                      </label>
+
+                      {uploadError && (
+                        <p role="alert" className={styles.alert}>
+                          {uploadError}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => void handleUpload()}
+                        disabled={!file || uploading}
+                        className={styles.go}
+                      >
+                        {uploading ? "Mengunggah..." : "Unggah Bukti Pembayaran"}
+                      </button>
+                    </>
+                  )}
+
+                  {/* --- Menunggu verifikasi --- */}
+                  {stage === "verifikasi" && (
+                    <>
+                      <p className={styles.note}>
+                        <Info size={16} aria-hidden="true" />
+                        <span>Setelah admin menyetujui pembayaran, QR tiketmu akan muncul di halaman ini.</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void handleRefresh()}
+                        disabled={refreshing}
+                        className={`${styles.ghost} ${styles.ghostTeal} ${refreshing ? styles.spin : ""}`}
+                      >
+                        {refreshIcon}
+                        {refreshing ? "Memeriksa..." : "Periksa Status"}
+                      </button>
+                    </>
+                  )}
+
+                  {/* --- Lunas --- */}
+                  {stage === "lunas" && (
+                    <p className={styles.note}>
+                      <Info size={16} aria-hidden="true" />
+                      <span>
+                        Simpan kode booking ini. E-ticket (QR) untuk setiap tiket ada di bagian atas halaman.
+                      </span>
+                    </p>
+                  )}
+
+                  {/* --- Ditolak / kedaluwarsa --- */}
+                  {(stage === "ditolak" || stage === "kadaluarsa") && (
+                    <Link href={`/pembelian/tiket/${order.event_id}`} className={styles.go}>
+                      Pesan Ulang
+                    </Link>
+                  )}
+
+                  <Link href="/" className={styles.ghost}>
+                    <Home size={16} aria-hidden="true" />
+                    Kembali ke Beranda
+                  </Link>
+                </div>
+              </div>
+            </aside>
           </div>
 
-          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-8">
-            <span className="flex items-center gap-2 text-[#6B7280]">
-              <Mail size={15} className="text-[#9CA3AF]" />
-              <span>
-                <span className="block text-xs text-[#9CA3AF]">Email</span>
-                support@drstar.id
+          {/* ===== bantuan ===== */}
+          <div className={`${styles.help} mt-8`}>
+            <div className={styles.helpHead}>
+              <span className={styles.cardIcon} aria-hidden="true">
+                <MessageCircle size={18} />
               </span>
-            </span>
-            <span className="flex items-center gap-2 text-[#6B7280]">
-              <Phone size={15} className="text-[#9CA3AF]" />
-              <span>
-                <span className="block text-xs text-[#9CA3AF]">WhatsApp</span>
-                +62 812-3456-7890
-              </span>
-            </span>
-          </div>
+              <div>
+                <p className={`${styles.display} ${styles.helpTitle}`}>Butuh bantuan?</p>
+                <p className={styles.helpSub}>Kami siap membantu 24/7</p>
+              </div>
+            </div>
 
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] px-4 py-2.5 text-sm font-semibold text-[#1F2937] transition-colors duration-300 hover:bg-[#FFFBF5]"
-          >
-            <HelpCircle size={16} />
-            Pusat Bantuan
-          </button>
+            <div className={styles.helpContacts}>
+              <span className={styles.helpItem}>
+                <Mail size={16} aria-hidden="true" />
+                <span>
+                  <small>Email</small>
+                  support@drstar.id
+                </span>
+              </span>
+              <span className={styles.helpItem}>
+                <Phone size={16} aria-hidden="true" />
+                <span>
+                  <small>WhatsApp</small>
+                  +62 812-3456-7890
+                </span>
+              </span>
+            </div>
+
+            <button type="button" className={styles.ghost}>
+              <HelpCircle size={16} aria-hidden="true" />
+              Pusat Bantuan
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Shell>
   );
 }
 
 // useSearchParams harus berada di dalam Suspense
 export default function PembayaranSukses() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white pt-24 sm:pt-32" />}>
+    <Suspense fallback={<SuksesSkeleton />}>
       <SuksesContent />
     </Suspense>
   );
