@@ -652,3 +652,74 @@ export async function validateTicket(qr: string, mode: "cek" | "gunakan"): Promi
   if (body && typeof body.hasil === "string") return body as HasilValidasiTiket;
   throw new Error(body?.message || `Request gagal (status ${res.status})`);
 }
+
+// ===== Wishlist pelanggan (/api/wishlist, role pelanggan) =====
+
+/** Satu baris wishlist beserta data event lengkap (poster, artis, kategori tiket). */
+export type WishlistItem = {
+  id: number;
+  event_id: number;
+  ditambahkan_pada: string;
+  event: EventItem;
+};
+
+/** GET /api/wishlist — wishlist milik user yang login, terbaru dulu */
+export async function fetchWishlist(): Promise<WishlistItem[]> {
+  const res = await apiFetch<ApiListResponse<WishlistItem>>("/wishlist");
+  return res.data;
+}
+
+/** GET /api/wishlist/ids — hanya id event yang disimpan (ringan, buat status tombol hati) */
+export async function fetchWishlistIds(): Promise<number[]> {
+  const res = await apiFetch<{ success: boolean; data: number[] }>("/wishlist/ids");
+  return res.data;
+}
+
+/** POST /api/wishlist — simpan event ke wishlist (aman dipanggil berulang) */
+export async function addToWishlist(eventId: number): Promise<void> {
+  await apiFetch<ApiMessageResponse>("/wishlist", {
+    method: "POST",
+    body: JSON.stringify({ event_id: eventId }),
+  });
+}
+
+/** DELETE /api/wishlist/:eventId — hapus event dari wishlist */
+export async function removeFromWishlist(eventId: number): Promise<void> {
+  await apiFetch<ApiMessageResponse>(`/wishlist/${eventId}`, { method: "DELETE" });
+}
+
+// ===== Histori pembelian pelanggan (GET /api/pesanan/riwayat) =====
+
+/** Satu pesanan di daftar histori. Detail tiket + QR diambil terpisah lewat fetchMyOrder. */
+export type PesananRiwayat = {
+  id: number;
+  user_id: number;
+  event_id: number;
+  kategori_tiket_id: number;
+  jumlah: number;
+  total_harga: string;
+  status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
+  bukti_bayar: string | null;
+  payment_url?: string | null;
+  payment_status?: string | null;
+  kode_tiket: string | null;
+  order_type?: "online" | "offline";
+  createdAt?: string;
+  created_at?: string;
+  event?: {
+    id: number;
+    nama_event: string;
+    tanggal: string;
+    lokasi: string;
+    image_url?: string | null;
+    status?: EventItem["status"];
+    artis?: { nama: string } | null;
+  } | null;
+  kategori_tiket?: { nama_kelas: string; harga: string } | null;
+};
+
+/** GET /api/pesanan/riwayat — semua pesanan milik user yang login (BE memfilter per user) */
+export async function fetchOrderHistory(): Promise<PesananRiwayat[]> {
+  const res = await apiFetch<ApiListResponse<PesananRiwayat>>("/pesanan/riwayat");
+  return res.data;
+}

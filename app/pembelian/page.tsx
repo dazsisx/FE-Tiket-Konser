@@ -1,5 +1,5 @@
 import Pembelian from "@/components/pembelian";
 
-export default function LoginPage() {
+export default function PembelianPage() {
   return <Pembelian />;
 }

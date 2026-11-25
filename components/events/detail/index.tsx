@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Big_Shoulders } from "next/font/google";
 import BackButton from "@/components/ui/BackButton";
+import WishlistButton from "@/components/wishlist/WishlistButton";
 import { ArrowRight, BadgeCheck, FileText, MapPin, CalendarDays, Clock, Share2, Ticket, UserRound } from "lucide-react";
 import { EventItem, getImageUrl, formatRupiah, formatTanggal, getHargaTermurah } from "@/utils/api";
 import {
@@ -152,6 +153,7 @@ export default function EventDetail({ event }: EventDetailProps) {
                     <div className={`${styles.display} ${styles.ctaPrice}`}>{price}</div>
                   </div>
                   {buy}
+                  <WishlistButton eventId={event.id} className={styles.ghost} />
                   <button type="button" className={styles.ghost} onClick={() => void share()}>
                     <Share2 size={16} aria-hidden="true" /> Bagikan
                   </button>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Big_Shoulders } from "next/font/google";
-import { Search, User, LogOut, ChevronDown, LayoutDashboard } from "lucide-react";
+import { Search, User, LogOut, ChevronDown, LayoutDashboard, Heart, History } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { KATEGORI } from "@/utils/kategori";
@@ -12,16 +12,65 @@ import { KATEGORI } from "@/utils/kategori";
 // Font judul yang sama dengan landing & halaman kategori
 const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
-/** Link teks dengan garis emas yang "menarik" masuk saat hover / aktif. */
-function NavLink({ href, active, children }: { href: string; active?: boolean; children: React.ReactNode }) {
+/**
+ * Link teks dengan garis emas yang "menarik" masuk saat hover / aktif.
+ * Dengan `icon`, label disembunyikan di bawah breakpoint lg (tinggal ikon) supaya navbar tidak sesak di tablet.
+ */
+function NavLink({
+  href,
+  active,
+  icon,
+  title,
+  children,
+}: {
+  href: string;
+  active?: boolean;
+  icon?: React.ReactNode;
+  title?: string;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}
+      title={title}
+      aria-label={title}
       aria-current={active ? "page" : undefined}
-      className={`relative py-1 text-sm font-semibold transition-colors hover:text-[#0F766E] after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:origin-left after:rounded-full after:bg-[#F59E0B] after:transition-transform after:duration-300 ${
+      className={`relative inline-flex items-center gap-1.5 py-1 text-sm font-semibold transition-colors hover:text-[#0F766E] after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:origin-left after:rounded-full after:bg-[#F59E0B] after:transition-transform after:duration-300 ${
         active ? "text-[#0F766E] after:scale-x-100" : "text-[#1F2937] after:scale-x-0 hover:after:scale-x-100"
       }`}
     >
+      {icon}
+      <span className={icon ? "hidden lg:inline" : undefined}>{children}</span>
+    </Link>
+  );
+}
+
+/** Item menu mobile: penanda aktif = latar emerald muda + garis emas di kiri. */
+function MobileLink({
+  href,
+  active,
+  onClick,
+  icon,
+  children,
+}: {
+  href: string;
+  active?: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`relative flex w-full items-center gap-2.5 rounded-2xl px-5 py-3.5 text-left text-base font-semibold transition-colors duration-150 hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
+        active
+          ? "bg-[#ECFDF5] text-[#0F766E] before:absolute before:top-1/2 before:left-0 before:h-6 before:w-1 before:-translate-y-1/2 before:rounded-full before:bg-[#F59E0B]"
+          : "text-[#1F2937]"
+      }`}
+    >
+      {icon}
       {children}
     </Link>
   );
@@ -66,6 +115,12 @@ export default function Navbar() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+
+  // Wishlist & histori adalah fitur pelanggan. Tamu juga melihatnya (histori bisa dicek tanpa login,
+  // wishlist mengarahkan ke login). Akun petugas memakai dashboard sendiri.
+  const showCustomerLinks = !user || user.role === "pelanggan";
+  const wishlistActive = pathname.startsWith("/wishlist");
+  const historiActive = pathname.startsWith("/pembelian");
 
   const initials = user?.nama
     ? user.nama
@@ -142,9 +197,21 @@ export default function Navbar() {
 
           {/* Right menu */}
           <div className="hidden shrink-0 items-center gap-4 md:flex">
-            <NavLink href="/pembelian" active={pathname.startsWith("/pembelian")}>
-              Pembelian
-            </NavLink>
+            {showCustomerLinks && (
+              <>
+                <NavLink href="/wishlist" active={wishlistActive} title="Wishlist" icon={<Heart size={16} aria-hidden="true" />}>
+                  Wishlist
+                </NavLink>
+                <NavLink
+                  href="/pembelian"
+                  active={historiActive}
+                  title="Histori Pembelian"
+                  icon={<History size={16} aria-hidden="true" />}
+                >
+                  Histori
+                </NavLink>
+              </>
+            )}
 
             {isLoading ? (
               <div className="h-9 w-9 animate-pulse rounded-full bg-[#E5E7EB]" />
@@ -200,6 +267,32 @@ export default function Navbar() {
                     <User size={16} />
                     Profil Saya
                   </Link>
+                  {user.role === "pelanggan" && (
+                    <>
+                      <Link
+                        href="/wishlist"
+                        onClick={() => setProfileMenuOpen(false)}
+                        aria-current={wishlistActive ? "page" : undefined}
+                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
+                          wishlistActive ? "bg-[#ECFDF5] text-[#0F766E]" : "text-[#1F2937]"
+                        }`}
+                      >
+                        <Heart size={16} />
+                        Wishlist
+                      </Link>
+                      <Link
+                        href="/pembelian"
+                        onClick={() => setProfileMenuOpen(false)}
+                        aria-current={historiActive ? "page" : undefined}
+                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
+                          historiActive ? "bg-[#ECFDF5] text-[#0F766E]" : "text-[#1F2937]"
+                        }`}
+                      >
+                        <History size={16} />
+                        Histori Pembelian
+                      </Link>
+                    </>
+                  )}
                   {user.role === "admin" && (
                     <Link
                       href="/admin"
@@ -310,13 +403,26 @@ export default function Navbar() {
             ))}
           </div>
 
-          <Link
-            href="/pembelian"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block w-full rounded-2xl px-5 py-3.5 text-left text-base font-semibold text-[#1F2937] transition-colors duration-150 hover:bg-[#ECFDF5] hover:text-[#0F766E]"
-          >
-            Pembelian
-          </Link>
+          {showCustomerLinks && (
+            <>
+              <MobileLink
+                href="/wishlist"
+                active={wishlistActive}
+                onClick={() => setMobileMenuOpen(false)}
+                icon={<Heart size={18} aria-hidden="true" />}
+              >
+                Wishlist
+              </MobileLink>
+              <MobileLink
+                href="/pembelian"
+                active={historiActive}
+                onClick={() => setMobileMenuOpen(false)}
+                icon={<History size={18} aria-hidden="true" />}
+              >
+                Histori Pembelian
+              </MobileLink>
+            </>
+          )}
 
           {user && (
             <Link
