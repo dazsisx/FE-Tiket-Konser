@@ -2,12 +2,34 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Big_Shoulders } from "next/font/google";
 import { Search, User, LogOut, ChevronDown, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { KATEGORI } from "@/utils/kategori";
+
+// Font judul yang sama dengan landing & halaman kategori
+const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+
+/** Link teks dengan garis emas yang "menarik" masuk saat hover / aktif. */
+function NavLink({ href, active, children }: { href: string; active?: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`relative py-1 text-sm font-semibold transition-colors hover:text-[#0F766E] after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:origin-left after:rounded-full after:bg-[#F59E0B] after:transition-transform after:duration-300 ${
+        active ? "text-[#0F766E] after:scale-x-100" : "text-[#1F2937] after:scale-x-0 hover:after:scale-x-100"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function Navbar() {
   const { user, isLoading, logout } = useAuth();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -33,6 +55,18 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Esc menutup menu profil / menu mobile
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   const initials = user?.nama
     ? user.nama
         .split(" ")
@@ -53,14 +87,14 @@ export default function Navbar() {
         />
       )}
       <div
-        className={`fixed top-0 right-0 left-0 z-50 flex justify-center px-4 transition-all duration-500 ${
+        className={`${display.variable} fixed top-0 right-0 left-0 z-50 flex justify-center px-4 transition-all duration-500 ${
           scrolled ? "pt-3" : "pt-4"
         }`}
       >
         <nav
           className={`relative flex h-16 items-center gap-4 transition-all duration-500 ${
             scrolled
-              ? "navbar-liquid-glass w-[95%] max-w-[1000px] rounded-full px-6"
+              ? "navbar-liquid-glass w-[95%] max-w-[1000px] rounded-full px-6 ring-1 ring-[#F59E0B]/30 xl:max-w-[1180px]"
               : "w-full max-w-[1200px] bg-transparent px-5"
           }`}
         >
@@ -77,7 +111,7 @@ export default function Navbar() {
           </Link>
 
           {/* Search bar */}
-          <div className="hidden flex-1 items-center justify-between rounded-full border border-[#E5E7EB] bg-white pl-5 pr-1.5 shadow-sm md:flex">
+          <div className="hidden min-w-[9rem] flex-1 items-center justify-between rounded-full border border-[#E5E7EB] bg-white pl-5 pr-1.5 shadow-sm md:flex">
             <input
               type="text"
               value={searchValue}
@@ -93,14 +127,24 @@ export default function Navbar() {
             </button>
           </div>
 
+          {/* Jalan pintas kategori (layar lebar). Di beranda disembunyikan karena kotak kategori sudah tampil di halaman itu. */}
+          <div className={`hidden shrink-0 items-center gap-5 ${pathname === "/" ? "" : "xl:flex"}`}>
+            {KATEGORI.map((k) => (
+              <Link
+                key={k.slug}
+                href={`/kategori/${k.slug}`}
+                className="relative py-1 text-[1.15rem] font-extrabold uppercase leading-none tracking-wide text-[#1F2937] transition-colors [font-family:var(--font-display),'Arial_Narrow',Impact,sans-serif] hover:text-[#0F766E] after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:rounded-full after:bg-[#F59E0B] after:transition-transform after:duration-300 hover:after:scale-x-100"
+              >
+                {k.label}
+              </Link>
+            ))}
+          </div>
+
           {/* Right menu */}
           <div className="hidden shrink-0 items-center gap-4 md:flex">
-            <Link
-              href="/pembelian"
-              className="text-sm font-semibold text-[#1F2937] transition-colors hover:text-[#6EE7B7]"
-            >
+            <NavLink href="/pembelian" active={pathname.startsWith("/pembelian")}>
               Pembelian
-            </Link>
+            </NavLink>
 
             {isLoading ? (
               <div className="h-9 w-9 animate-pulse rounded-full bg-[#E5E7EB]" />
@@ -182,7 +226,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/auth/login"
-                  className="rounded-full border-[1.5px] border-[#0F766E] px-5 py-2 text-sm font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#F59E0B]"
+                  className="rounded-full border-[1.5px] border-[#0F766E] px-5 py-2 text-sm font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#B45309]"
                 >
                   Masuk
                 </Link>
@@ -201,6 +245,7 @@ export default function Navbar() {
             className="ml-auto flex flex-col items-center justify-center gap-1.5 p-2 md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Buka atau tutup menu"
+            aria-expanded={mobileMenuOpen}
           >
             <span
               className={`block h-0.5 w-6 rounded-full bg-[#1F2937] transition-all duration-300 ${
@@ -249,6 +294,20 @@ export default function Navbar() {
               className="w-full bg-transparent text-sm text-[#1F2937] placeholder:text-[#9CA3AF] focus:outline-none"
             />
             <Search size={16} className="text-[#9CA3AF]" />
+          </div>
+
+          <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Kategori</p>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {KATEGORI.map((k) => (
+              <Link
+                key={k.slug}
+                href={`/kategori/${k.slug}`}
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-xl border-[1.5px] border-[#E5E7EB] px-4 py-3 text-xl font-extrabold uppercase leading-none text-[#1F2937] transition-colors [font-family:var(--font-display),'Arial_Narrow',Impact,sans-serif] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
+              >
+                {k.label}
+              </Link>
+            ))}
           </div>
 
           <Link
@@ -302,7 +361,7 @@ export default function Navbar() {
                 <Link
                   href="/auth/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full rounded-2xl border-[1.5px] border-[#0F766E] px-5 py-3 text-center text-base font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#F59E0B]"
+                  className="w-full rounded-2xl border-[1.5px] border-[#0F766E] px-5 py-3 text-center text-base font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#B45309]"
                 >
                   Masuk
                 </Link>

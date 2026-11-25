@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import { Big_Shoulders } from "next/font/google";
 import {
   ArrowRight,
   ChevronLeft,
@@ -20,69 +21,91 @@ import {
 import {
   type EventItem,
   getImageUrl,
-  formatTanggal,
   getHargaTermurah,
 } from "@/utils/api";
+import { KATEGORI, kategoriOf, potongTanggal, type KategoriSlug } from "@/utils/kategori";
+import styles from "./hero-top-events.module.css";
 
 /**
- * Landing page, gabungan:
- *  - loket.com   : banner full-bleed tepat di bawah navbar (panah di tepi,
- *                  dot di kiri bawah), heading seksi berikon, kartu lebar
- *  - tiket.com   : tab pill + baris ikon bulat yang bisa digeser
+ * Landing page. Bahasa visual sama dengan halaman /kategori/<slug>
+ * (judul poster condensed, emas + hijau, gerakan halus), tapi lebih tenang:
+ * struktur tetap banner -> kategori/lokasi -> rail event supaya mudah dipindai.
  *
- * Search sengaja tidak dibuat lagi di sini karena sudah ada di navbar.
- *
- * Asumsi route: kategori -> /events?kategori=<slug>. Sesuaikan jika beda.
+ * Kartu event = poster dengan sobekan kecil di sisinya (isyarat tiket), bukan tiket penuh.
  */
 
-const categories = [
-  { label: "Konser", slug: "konser", icon: Music2 },
-  { label: "Festival", slug: "festival", icon: PartyPopper },
-  { label: "Musik Live", slug: "musik-live", icon: Mic2 },
-  { label: "Akustik", slug: "akustik", icon: Guitar },
-];
+const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+
+const ICONS: Record<KategoriSlug, LucideIcon> = {
+  konser: Music2,
+  festival: PartyPopper,
+  "musik-live": Mic2,
+  akustik: Guitar,
+};
 
 const railScroll =
   "flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
-// 1 kartu = 72% layar di mobile, 1/3 di tablet, 1/4 di desktop (gap 16px)
+// 1 kartu = 60% layar di mobile, 1/3 tablet, 1/5 desktop (gap 16px)
 const railCard =
-  "w-[72%] shrink-0 snap-start sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-48px)/4)]";
+  "w-[60%] shrink-0 snap-start sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-64px)/5)]";
+
+const pad = (n: number) => String(n).padStart(2, "0");
 
 /* ---------- helper ---------- */
+
+/** Muncul pelan saat masuk layar. */
+function Reveal({ children, index = 0, className = "" }: { children: ReactNode; index?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={`${styles.reveal} ${className}`} data-in={seen} style={{ "--i": Math.min(index, 8) } as CSSProperties}>
+      {children}
+    </div>
+  );
+}
 
 function Poster({ event }: { event: EventItem }) {
   const url = getImageUrl(event.poster);
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={url}
-        alt={event.nama_event}
-        className="h-full w-full object-cover"
-      />
+      <img src={url} alt={event.nama_event} loading="lazy" className="h-full w-full object-cover" />
     );
   }
   return (
-    <div className="flex h-full w-full items-end bg-[#F1EBE0] p-3">
-      <span className="line-clamp-3 text-xs font-semibold text-[#6B7280]">
+    <div className="flex h-full w-full items-center justify-center bg-[#F1EBE0] p-4 pb-10 text-center">
+      <span className={`${styles.display} line-clamp-3 text-2xl font-extrabold leading-[0.95] text-[#1F2937]/70`}>
         {event.nama_event}
       </span>
     </div>
   );
 }
 
-function ArrowButtons({
-  onPrev,
-  onNext,
-  className = "",
-}: {
-  onPrev: () => void;
-  onNext: () => void;
-  className?: string;
-}) {
+function ArrowButtons({ onPrev, onNext, className = "" }: { onPrev: () => void; onNext: () => void; className?: string }) {
   const base =
-    "flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#1F2937] transition-colors hover:border-[#1F2937] hover:bg-[#1F2937] hover:text-white";
+    "flex h-9 w-9 items-center justify-center rounded-full border border-[#1F2937]/20 bg-white text-[#1F2937] transition-colors hover:border-[#1F2937] hover:bg-[#1F2937] hover:text-white";
   return (
     <div className={`gap-2 ${className}`}>
       <button type="button" onClick={onPrev} aria-label="Geser ke kiri" className={base}>
@@ -95,49 +118,36 @@ function ArrowButtons({
   );
 }
 
-function SectionTitle({
-  icon: Icon,
-  title,
-  hint,
-}: {
-  icon: LucideIcon;
-  title: string;
-  hint?: string;
-}) {
+function SectionTitle({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon size={26} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[#1F2937]" />
+      <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1F2937] text-[#F59E0B]">
+        <Icon size={18} strokeWidth={2} />
+      </span>
       <div>
-        <h2 className="text-xl font-extrabold tracking-tight text-[#1F2937] sm:text-2xl">
-          {title}
-        </h2>
-        {hint && <p className="mt-0.5 text-sm text-[#6B7280]">{hint}</p>}
+        <h2 className={`${styles.display} ${styles.secTitle}`}>{title}</h2>
+        <span className={styles.secBar} aria-hidden="true" />
+        {hint && <p className="mt-2 text-sm text-[#6B7280]">{hint}</p>}
       </div>
     </div>
   );
 }
 
-/* ---------- banner full-bleed (gaya loket) ---------- */
+/* ---------- banner full-bleed ---------- */
 
 function Banner({ events }: { events: EventItem[] }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const total = events.length;
 
-  useEffect(() => {
-    if (paused || total < 2) return;
-    const id = setInterval(() => setActive((a) => (a + 1) % total), 6000);
-    return () => clearInterval(id);
-  }, [paused, total]);
-
   const go = (i: number) => setActive(((i % total) + total) % total);
 
   const arrow =
-    "absolute top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1F2937] shadow-md transition-colors hover:bg-[#F59E0B] sm:flex";
+    "absolute top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1F2937] shadow-md transition-colors hover:bg-[#F59E0B] sm:flex";
 
   return (
     <div
-      className="relative h-[340px] w-full overflow-hidden bg-[#1F2937] sm:h-[400px] lg:h-[460px]"
+      className={`relative h-[380px] w-full overflow-hidden bg-[#1F2937] sm:h-[440px] lg:h-[500px] ${paused ? styles.paused : ""}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -146,6 +156,7 @@ function Banner({ events }: { events: EventItem[] }) {
       {events.map((event, i) => {
         const url = getImageUrl(event.poster);
         const isActive = i === active;
+        const { hari, bulan } = potongTanggal(event.tanggal);
         return (
           <Link
             key={event.id}
@@ -153,33 +164,39 @@ function Banner({ events }: { events: EventItem[] }) {
             aria-label={`Lihat detail ${event.nama_event}`}
             aria-hidden={!isActive}
             tabIndex={isActive ? 0 : -1}
-            className={`absolute inset-0 block transition-opacity duration-700 ${
+            data-active={isActive}
+            className={`${styles.slide} absolute inset-0 block transition-opacity duration-700 ${
               isActive ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
             {url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={url}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+              <img src={url} alt="" className={styles.bannerImg} />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10 sm:bg-gradient-to-r sm:from-black/75 sm:via-black/35 sm:to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10 sm:bg-gradient-to-r sm:from-black/80 sm:via-black/40 sm:to-transparent" />
 
-            <div className="absolute inset-0 flex items-end pb-12 sm:items-center sm:pb-0">
+            <div className="absolute inset-0 flex items-end pb-14 sm:items-center sm:pb-0">
               <div className="mx-auto w-full max-w-7xl px-5 sm:px-16">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#F59E0B]">
-                  {formatTanggal(event.tanggal)}
-                </p>
-                <h3 className="mt-2 line-clamp-2 max-w-xl text-2xl font-extrabold leading-tight text-white sm:text-4xl lg:text-5xl">
+                <div className={`${styles.bannerIn} flex items-center gap-3`} style={{ "--n": 0 } as CSSProperties}>
+                  <span className={styles.dateChip}>
+                    <span className={`${styles.display} ${styles.dateDay}`}>{hari}</span>
+                    <span className={styles.dateMonth}>{bulan}</span>
+                  </span>
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-white/90">
+                    <MapPin size={15} className="shrink-0 text-[#F59E0B]" />
+                    <span className="line-clamp-1">{event.lokasi}</span>
+                  </p>
+                </div>
+                <h3
+                  className={`${styles.display} ${styles.bannerTitle} ${styles.bannerIn} mt-4 line-clamp-3 max-w-3xl`}
+                  style={{ "--n": 1 } as CSSProperties}
+                >
                   {event.nama_event}
                 </h3>
-                <p className="mt-2 flex items-center gap-1.5 text-sm text-white/85">
-                  <MapPin size={14} className="shrink-0" />
-                  <span className="line-clamp-1">{event.lokasi}</span>
-                </p>
-                <span className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#F59E0B] px-5 py-2.5 text-sm font-bold text-[#1F2937]">
+                <span
+                  className={`${styles.bannerIn} mt-6 inline-flex items-center gap-2 rounded-lg bg-[#F59E0B] px-5 py-2.5 text-sm font-bold text-[#1F2937]`}
+                  style={{ "--n": 2 } as CSSProperties}
+                >
                   {event.status === "ditutup"
                     ? "Tiket ditutup"
                     : `Beli tiket · mulai ${getHargaTermurah(event.kategori_tiket)}`}
@@ -193,36 +210,34 @@ function Banner({ events }: { events: EventItem[] }) {
 
       {total > 1 && (
         <>
-          <button
-            type="button"
-            onClick={() => go(active - 1)}
-            aria-label="Banner sebelumnya"
-            className={`${arrow} left-4`}
-          >
+          <button type="button" onClick={() => go(active - 1)} aria-label="Banner sebelumnya" className={`${arrow} left-4`}>
             <ChevronLeft size={20} />
           </button>
-          <button
-            type="button"
-            onClick={() => go(active + 1)}
-            aria-label="Banner berikutnya"
-            className={`${arrow} right-4`}
-          >
+          <button type="button" onClick={() => go(active + 1)} aria-label="Banner berikutnya" className={`${arrow} right-4`}>
             <ChevronRight size={20} />
           </button>
 
-          <div className="absolute inset-x-0 bottom-4 z-20">
-            <div className="mx-auto flex max-w-7xl items-center gap-1.5 px-5 sm:px-16">
-              {events.map((event, i) => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => go(i)}
-                  aria-label={`Ke banner ${i + 1}`}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === active ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
-                  }`}
-                />
-              ))}
+          <div className="absolute inset-x-0 bottom-3 z-20">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 sm:px-16">
+              <div className={styles.segs}>
+                {events.map((event, i) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => go(i)}
+                    aria-label={`Ke banner ${i + 1}`}
+                    aria-current={i === active}
+                    data-state={i < active ? "done" : i === active ? "active" : "idle"}
+                    className={styles.seg}
+                  >
+                    {/* penanda waktu: saat penuh, banner pindah ke berikutnya */}
+                    <span className={styles.segFill} onAnimationEnd={i === active ? () => go(active + 1) : undefined} />
+                  </button>
+                ))}
+              </div>
+              <span className={`${styles.display} ${styles.counter}`} aria-hidden="true">
+                {pad(active + 1)} / {pad(total)}
+              </span>
             </div>
           </div>
         </>
@@ -231,72 +246,40 @@ function Banner({ events }: { events: EventItem[] }) {
   );
 }
 
-/* ---------- kartu event ---------- */
+/* ---------- kartu event: poster dengan sobekan kecil ---------- */
 
-function EventCard({
-  event,
-  rank,
-  className = "",
-}: {
-  event: EventItem;
-  rank?: number;
-  className?: string;
-}) {
+function EventCard({ event, rank, className = "" }: { event: EventItem; rank?: number; className?: string }) {
   const closed = event.status === "ditutup";
+  const { hari, bulan } = potongTanggal(event.tanggal);
   return (
-    <Link
-      href={`/events/${event.id}`}
-      aria-label={`Lihat detail ${event.nama_event}`}
-      className={`group block ${className}`}
-    >
-      <div className="relative aspect-[5/4] overflow-hidden rounded-xl bg-[#F1EBE0]">
-        <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]">
+    <Link href={`/events/${event.id}`} aria-label={`Lihat detail ${event.nama_event}`} className={`${styles.card} ${className}`}>
+      <div className={styles.poster}>
+        <div className={styles.posterImg}>
           <Poster event={event} />
         </div>
-        {rank !== undefined && (
-          <span className="absolute bottom-0 left-0 rounded-tr-xl bg-[#FFFBF5] px-3 pt-1 text-3xl font-extrabold leading-none text-[#1F2937]">
-            {String(rank).padStart(2, "0")}
-          </span>
-        )}
-        {closed && (
-          <span className="absolute top-2 left-2 rounded bg-[#1F2937] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-            Ditutup
-          </span>
-        )}
+        <span className={styles.chipDate} aria-hidden="true">
+          <span className={`${styles.display} ${styles.chipDay}`}>{hari}</span>
+          <span className={styles.chipMon}>{bulan}</span>
+        </span>
+        {rank !== undefined && <span className={`${styles.display} ${styles.rank}`}>{pad(rank)}</span>}
+        {closed && <span className={styles.closed}>Ditutup</span>}
       </div>
-      <div className="mt-3">
-        <p className="line-clamp-2 text-sm font-bold leading-snug text-[#1F2937] group-hover:text-[#0F766E]">
-          {event.nama_event}
-        </p>
-        <p className="mt-1.5 text-xs text-[#6B7280]">
-          {formatTanggal(event.tanggal)}
-        </p>
-        <p className="mt-0.5 flex items-center gap-1 text-xs text-[#6B7280]">
-          <MapPin size={12} className="shrink-0" />
-          <span className="line-clamp-1">{event.lokasi}</span>
-        </p>
-        <p className="mt-2 text-sm font-bold text-[#1F2937]">
-          <span className="mr-1 text-xs font-medium text-[#6B7280]">Mulai</span>
-          {getHargaTermurah(event.kategori_tiket)}
-        </p>
-      </div>
+      <p className={`${styles.cardTitle} line-clamp-2`}>{event.nama_event}</p>
+      <p className="mt-1 flex items-center gap-1 text-xs text-[#6B7280]">
+        <MapPin size={12} className="shrink-0" />
+        <span className="line-clamp-1">{event.lokasi}</span>
+      </p>
+      <p className={`${styles.display} ${styles.cardPrice}`}>
+        <span className={styles.cardPriceLbl}>Mulai</span>
+        {getHargaTermurah(event.kategori_tiket)}
+      </p>
     </Link>
   );
 }
 
 /* ---------- rail horizontal ---------- */
 
-function Rail({
-  icon,
-  title,
-  hint,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  hint?: string;
-  children: ReactNode;
-}) {
+function Rail({ icon, title, hint, children }: { icon: LucideIcon; title: string; hint?: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const move = (dir: 1 | -1) => {
     const el = ref.current;
@@ -304,26 +287,23 @@ function Rail({
   };
 
   return (
-    <section className="mt-14">
-      <div className="flex items-start justify-between gap-4">
-        <SectionTitle icon={icon} title={title} hint={hint} />
-        <div className="flex items-center gap-4">
-          <Link
-            href="/events"
-            className="text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline"
-          >
-            Lihat semua
-          </Link>
-          <ArrowButtons
-            onPrev={() => move(-1)}
-            onNext={() => move(1)}
-            className="hidden sm:flex"
-          />
+    <section className="mt-16">
+      <Reveal>
+        <div className="flex items-start justify-between gap-4">
+          <SectionTitle icon={icon} title={title} hint={hint} />
+          <div className="flex items-center gap-4 pt-1">
+            <Link href="/kategori/konser" className="text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
+              Lihat semua
+            </Link>
+            <ArrowButtons onPrev={() => move(-1)} onNext={() => move(1)} className="hidden sm:flex" />
+          </div>
         </div>
-      </div>
-      <div ref={ref} className={`${railScroll} mt-5 -mx-4 px-4 sm:mx-0 sm:px-0`}>
-        {children}
-      </div>
+      </Reveal>
+      <Reveal index={1}>
+        <div ref={ref} className={`${railScroll} mt-6 -mx-4 px-4 sm:mx-0 sm:px-0`}>
+          {children}
+        </div>
+      </Reveal>
     </section>
   );
 }
@@ -333,6 +313,12 @@ function Rail({
 export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
   const [tab, setTab] = useState<"kategori" | "lokasi">("kategori");
   const [lokasi, setLokasi] = useState<string | null>(null);
+
+  // Jumlah acara per kategori (draft & selesai tidak dihitung)
+  const jumlah: Record<KategoriSlug, number> = { konser: 0, festival: 0, "musik-live": 0, akustik: 0 };
+  events.forEach((e) => {
+    if (e.status === "aktif" || e.status === "ditutup") jumlah[kategoriOf(e)] += 1;
+  });
 
   // Lokasi dari data asli: 8 lokasi dengan event terbanyak
   const lokasiCount = new Map<string, number>();
@@ -348,178 +334,144 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
   const filtered = lokasi ? events.filter((e) => e.lokasi === lokasi) : events;
   const topEvents = filtered.slice(0, 8);
   const newestEvents = [...filtered]
-    .sort(
-      (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime(),
-    )
-    .slice(0, 8);
+    .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+    .slice(0, 10);
   const recommendedEvents = filtered.slice(8, 16);
 
-  const pill = (active: boolean) =>
-    `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-      active
-        ? "border-[#0F766E] bg-[#ECFDF5] text-[#0F766E]"
-        : "border-[#E5E7EB] bg-white text-[#1F2937] hover:border-[#1F2937]"
-    }`;
-
-  const circle =
-    "flex h-16 w-16 items-center justify-center rounded-full border bg-white transition-colors";
-
   return (
-    <section className="bg-[#FFFBF5] pt-24 pb-20 sm:pt-28">
+    <section className={`${display.variable} ${styles.root} bg-[#FFFBF5] pt-24 pb-24 sm:pt-28`}>
+      <div className={styles.grain} aria-hidden="true" />
       <h1 className="sr-only">Tiket konser dan acara musik</h1>
 
-      {/* ===== Banner full-bleed ===== */}
-      {banners.length > 0 ? (
-        <Banner events={banners} />
-      ) : (
-        <div className="flex h-[340px] items-center justify-center bg-[#1F2937] sm:h-[400px] lg:h-[460px]">
-          <p className="text-sm font-medium text-white/60">
-            Belum ada event tersedia
-          </p>
-        </div>
-      )}
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* ===== Tab + baris ikon bulat (gaya tiket.com) ===== */}
-        <div className="mt-8">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setTab("kategori")}
-              className={pill(tab === "kategori")}
-            >
-              <LayoutGrid size={16} />
-              Kategori
-            </button>
-            {lokasiList.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setTab("lokasi")}
-                className={pill(tab === "lokasi")}
-              >
-                <MapPin size={16} />
-                Lokasi
-              </button>
-            )}
+      <div className={styles.content}>
+        {/* ===== Banner full-bleed ===== */}
+        {banners.length > 0 ? (
+          <Banner events={banners} />
+        ) : (
+          <div className="flex h-[380px] items-center justify-center bg-[#1F2937] sm:h-[440px] lg:h-[500px]">
+            <p className="text-sm font-medium text-white/60">Belum ada event tersedia</p>
           </div>
+        )}
 
-          <div className="mt-5 flex gap-6 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {tab === "kategori" &&
-              categories.map(({ label, slug, icon: Icon }) => (
-                <Link
-                  key={slug}
-                  href={`/events?kategori=${slug}`}
-                  className="group flex w-[88px] shrink-0 flex-col items-center gap-2"
-                >
-                  <span
-                    className={`${circle} border-[#E5E7EB] text-[#0F766E] group-hover:border-[#0F766E] group-hover:bg-[#ECFDF5]`}
-                  >
-                    <Icon size={26} strokeWidth={1.6} />
-                  </span>
-                  <span className="text-center text-xs font-semibold text-[#1F2937]">
-                    {label}
-                  </span>
-                </Link>
-              ))}
+        {/* pita nama kategori */}
+        <div className={styles.ribbon} aria-hidden="true">
+          <div className={`${styles.display} ${styles.ribbonTrack}`}>
+            {[0, 1].map((n) => (
+              <span key={n} className={styles.ribbonItem}>
+                {Array.from({ length: 6 }, () => "Konser   /   Festival   /   Musik Live   /   Akustik   /   ").join("")}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* ===== Kategori / lokasi ===== */}
+          <Reveal className="mt-10">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className={styles.seg2} role="group" aria-label="Jelajahi berdasarkan">
+                <button type="button" aria-pressed={tab === "kategori"} onClick={() => setTab("kategori")} className={styles.seg2Btn}>
+                  <LayoutGrid size={16} />
+                  Kategori
+                </button>
+                {lokasiList.length > 1 && (
+                  <button type="button" aria-pressed={tab === "lokasi"} onClick={() => setTab("lokasi")} className={styles.seg2Btn}>
+                    <MapPin size={16} />
+                    Lokasi
+                  </button>
+                )}
+              </div>
+              <p className="text-sm text-[#6B7280]">
+                {tab === "kategori" ? "Pilih jenis acara" : "Saring acara berdasarkan tempat"}
+              </p>
+            </div>
+
+            {tab === "kategori" && (
+              <div className={`${styles.cats} mt-5`}>
+                {KATEGORI.map(({ label, slug }, i) => {
+                  const Icon = ICONS[slug];
+                  return (
+                    <Link key={slug} href={`/kategori/${slug}`} className={styles.cat}>
+                      <span className={styles.catTop}>
+                        <span>{pad(i + 1)}</span>
+                        <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+                      </span>
+                      <span className={`${styles.display} ${styles.catLabel}`}>{label}</span>
+                      <span className={`${styles.catCount} flex items-center justify-between`}>
+                        {jumlah[slug]} acara
+                        <ArrowRight size={16} className={styles.catGo} aria-hidden="true" />
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
             {tab === "lokasi" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setLokasi(null)}
-                  className="group flex w-[88px] shrink-0 flex-col items-center gap-2"
-                >
-                  <span
-                    className={`${circle} ${
-                      lokasi === null
-                        ? "border-[#0F766E] bg-[#0F766E] text-white"
-                        : "border-[#E5E7EB] text-[#0F766E] group-hover:border-[#0F766E]"
-                    }`}
-                  >
-                    <LayoutGrid size={26} strokeWidth={1.6} />
-                  </span>
-                  <span className="text-center text-xs font-semibold text-[#1F2937]">
-                    Semua
-                  </span>
+              <div className="mt-5 flex flex-wrap gap-2.5">
+                <button type="button" aria-pressed={lokasi === null} onClick={() => setLokasi(null)} className={styles.chip}>
+                  <LayoutGrid size={15} />
+                  Semua
                 </button>
                 {lokasiList.map((name) => (
                   <button
                     key={name}
                     type="button"
+                    aria-pressed={lokasi === name}
                     onClick={() => setLokasi(lokasi === name ? null : name)}
-                    className="group flex w-[88px] shrink-0 flex-col items-center gap-2"
+                    className={styles.chip}
                   >
-                    <span
-                      className={`${circle} ${
-                        lokasi === name
-                          ? "border-[#0F766E] bg-[#0F766E] text-white"
-                          : "border-[#E5E7EB] text-[#0F766E] group-hover:border-[#0F766E]"
-                      }`}
-                    >
-                      <MapPin size={26} strokeWidth={1.6} />
-                    </span>
-                    <span className="line-clamp-2 text-center text-xs font-semibold text-[#1F2937]">
-                      {name}
-                    </span>
+                    <MapPin size={15} className="shrink-0" />
+                    <span className="truncate">{name}</span>
+                    <span className="text-xs opacity-70">{lokasiCount.get(name)}</span>
                   </button>
                 ))}
-              </>
+              </div>
             )}
-          </div>
-        </div>
+          </Reveal>
 
-        {filtered.length === 0 && events.length > 0 && (
-          <p className="mt-10 text-sm text-[#9CA3AF]">
-            Belum ada event di lokasi ini.
-          </p>
-        )}
+          {filtered.length === 0 && events.length > 0 && (
+            <p className="mt-10 text-sm text-[#9CA3AF]">Belum ada event di lokasi ini.</p>
+          )}
 
-        {/* ===== Event Teratas ===== */}
-        {topEvents.length > 0 && (
-          <Rail
-            icon={Megaphone}
-            title="Event Teratas"
-            hint="Paling banyak dilihat minggu ini"
-          >
-            {topEvents.map((event, i) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                rank={i + 1}
-                className={railCard}
-              />
-            ))}
-          </Rail>
-        )}
-
-        {/* ===== Event Terbaru (grid) ===== */}
-        {newestEvents.length > 0 && (
-          <section className="mt-14">
-            <div className="flex items-start justify-between gap-4">
-              <SectionTitle icon={Clock} title="Event Terbaru" />
-              <Link
-                href="/events"
-                className="text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline"
-              >
-                Lihat semua
-              </Link>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-              {newestEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+          {/* ===== Event Teratas ===== */}
+          {topEvents.length > 0 && (
+            <Rail icon={Megaphone} title="Event Teratas" hint="Paling banyak dilihat minggu ini">
+              {topEvents.map((event, i) => (
+                <EventCard key={event.id} event={event} rank={i + 1} className={railCard} />
               ))}
-            </div>
-          </section>
-        )}
+            </Rail>
+          )}
 
-        {/* ===== Rekomendasi ===== */}
-        {recommendedEvents.length > 0 && (
-          <Rail icon={ThumbsUp} title="Rekomendasi Untukmu">
-            {recommendedEvents.map((event) => (
-              <EventCard key={event.id} event={event} className={railCard} />
-            ))}
-          </Rail>
-        )}
+          {/* ===== Event Terbaru (grid) ===== */}
+          {newestEvents.length > 0 && (
+            <section className="mt-16">
+              <Reveal>
+                <div className="flex items-start justify-between gap-4">
+                  <SectionTitle icon={Clock} title="Event Terbaru" />
+                  <Link href="/kategori/konser" className="pt-1 text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
+                    Lihat semua
+                  </Link>
+                </div>
+              </Reveal>
+              <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 lg:grid-cols-5">
+                {newestEvents.map((event, i) => (
+                  <Reveal key={event.id} index={i % 5}>
+                    <EventCard event={event} />
+                  </Reveal>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ===== Rekomendasi ===== */}
+          {recommendedEvents.length > 0 && (
+            <Rail icon={ThumbsUp} title="Rekomendasi Untukmu">
+              {recommendedEvents.map((event) => (
+                <EventCard key={event.id} event={event} className={railCard} />
+              ))}
+            </Rail>
+          )}
+        </div>
       </div>
     </section>
   );

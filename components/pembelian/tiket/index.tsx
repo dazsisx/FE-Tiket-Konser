@@ -1,26 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { RotateCw, Plus, Minus } from "lucide-react";
+import { Big_Shoulders } from "next/font/google";
+import { ArrowRight, CalendarDays, MapPin, Minus, Plus, RotateCw } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import VenueMap from "@/components/ui/VenueMap";
 import { resolveLayout } from "@/utils/venueLayouts";
-import {
-  fetchEventById,
-  formatRupiah,
-  type EventItem,
-  type KategoriTiket,
-} from "@/utils/api";
+import { fetchEventById, formatRupiah, getImageUrl, type EventItem, type KategoriTiket } from "@/utils/api";
+import { KATEGORI_BY_SLUG, formatHariTanggal, formatJamWib, kategoriOf } from "@/utils/kategori";
+import styles from "./ticket-selection.module.css";
+
+/**
+ * Pilih tiket. Logika (satu kategori per pesanan, batas 5 tiket, refresh stok)
+ * tidak berubah dari versi sebelumnya; hanya tampilan yang disamakan dengan
+ * landing, halaman kategori, dan detail event. Ditambah daftar kelas di bawah
+ * denah supaya mudah dipilih di HP.
+ */
+
+const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 // Batas per pesanan; BE sendiri mengecek sisa kuota
 const MAX_TICKETS_PER_ORDER = 5;
 
-const timeLabel = () =>
-  new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-
-const sisaOf = (k: KategoriTiket) =>
-  Math.max(0, k.sisa_kuota ?? k.kuota - k.terjual);
+const timeLabel = () => new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+const sisaOf = (k: KategoriTiket) => Math.max(0, k.sisa_kuota ?? k.kuota - k.terjual);
+const n = (i: number) => ({ "--n": i }) as CSSProperties;
 
 type Selection = { id: number; qty: number } | null;
 
@@ -30,11 +35,13 @@ export default function TicketSelection() {
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Selection>(null);
   const [lastUpdated, setLastUpdated] = useState(timeLabel);
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const data = await fetchEventById(slug);
       setEvent(data);
@@ -52,6 +59,7 @@ export default function TicketSelection() {
       setError(err instanceof Error ? err.message : "Event gagal dimuat.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [slug]);
 
@@ -60,11 +68,13 @@ export default function TicketSelection() {
   }, [load]);
 
   const tiers = event?.kategori_tiket ?? [];
+  const sortedTiers = [...tiers].sort((a, b) => parseFloat(a.harga) - parseFloat(b.harga));
   const saleOpen = event?.status === "aktif";
   const selectedTier = tiers.find((t) => t.id === selected?.id) ?? null;
   const totalTickets = selectedTier && selected ? selected.qty : 0;
   const totalPrice = selectedTier ? parseFloat(selectedTier.harga) * totalTickets : 0;
   const maxQty = selectedTier ? Math.min(MAX_TICKETS_PER_ORDER, sisaOf(selectedTier)) : 0;
+  const canContinue = totalTickets > 0 && saleOpen;
 
   const add = (tier: KategoriTiket) => {
     const max = Math.min(MAX_TICKETS_PER_ORDER, sisaOf(tier));
@@ -90,145 +100,206 @@ export default function TicketSelection() {
     router.push(`/pembelian/checkout/${slug}?${params.toString()}`);
   };
 
+  const posterUrl = event ? getImageUrl(event.poster) : null;
+  const kategori = event ? KATEGORI_BY_SLUG[kategoriOf(event)] : null;
+  const jam = event ? formatJamWib(event.tanggal) : "";
+
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16 sm:pt-32">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
-          {/* ===== Kolom kiri: denah venue ===== */}
-          <div>
-            <BackButton fallbackHref={`/events/${slug}`} />
+    <div className={`${display.variable} ${styles.root} pb-28 lg:pb-20`}>
+      <div className={styles.grain} aria-hidden="true" />
+
+      <div className={styles.content}>
+        {/* ===== hero ringkas ===== */}
+        <header className={`${styles.hero} pt-6 pb-9 sm:pt-8 sm:pb-12`}>
+          {posterUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={posterUrl} alt="" aria-hidden="true" className={styles.backdrop} />
+          )}
+          <div className={styles.heroShade} aria-hidden="true" />
+
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <BackButton fallbackHref={`/events/${slug}`} className={styles.back} />
+              <ol className={styles.steps} aria-label="Langkah pembelian">
+                <li className={styles.step} data-state="active" aria-current="step"><span className={`${styles.display} ${styles.stepNum}`}>01</span>Pilih tiket</li>
+                <li className={styles.step}><span className={`${styles.display} ${styles.stepNum}`}>02</span>Checkout</li>
+                <li className={styles.step}><span className={`${styles.display} ${styles.stepNum}`}>03</span>Bayar</li>
+              </ol>
+            </div>
 
             {loading ? (
-              <div className="mt-6 space-y-4">
-                <div className="h-8 w-2/3 animate-pulse rounded-lg bg-[#F3F4F6]" />
-                <div className="h-96 animate-pulse rounded-2xl bg-[#F3F4F6]" />
+              <div className="mt-8 space-y-3" aria-hidden="true">
+                <div className="h-4 w-24 animate-pulse rounded bg-white/15" />
+                <div className="h-12 w-2/3 animate-pulse rounded bg-white/15" />
               </div>
-            ) : error || !event ? (
-              <div role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-700">
-                {error ?? "Event tidak ditemukan."}
+            ) : event ? (
+              <div className="mt-8">
+                <span className={`${styles.kicker} ${styles.in}`} style={n(0)}>{kategori?.label ?? "Acara"}</span>
+                <h1 className={`${styles.display} ${styles.title} ${styles.in}`} style={n(1)}>{event.nama_event}</h1>
+                <ul className={`${styles.meta} ${styles.in}`} style={n(2)}>
+                  <li className={styles.metaRow}><CalendarDays size={16} aria-hidden="true" />{formatHariTanggal(event.tanggal)}{jam ? ` · ${jam}` : ""}</li>
+                  <li className={styles.metaRow}><MapPin size={16} aria-hidden="true" />{event.lokasi}</li>
+                </ul>
               </div>
-            ) : (
-              <>
-                <h1 className="mt-3 text-2xl font-bold text-[#1F2937] sm:text-3xl">
-                  {event.nama_event}
-                </h1>
-
-                {!saleOpen && (
-                  <div role="status" className="mt-4 rounded-xl border border-[#F59E0B]/30 bg-[#FFFBEB] px-4 py-3 text-sm text-[#6B7280]">
-                    Penjualan tiket untuk event ini sedang tidak dibuka.
-                  </div>
-                )}
-
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-[#6B7280]">
-                    Pilih zona di denah (satu kategori per pesanan, maksimal{" "}
-                    {MAX_TICKETS_PER_ORDER} tiket):
-                  </p>
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="text-[#9CA3AF]">Pembaruan terakhir {lastUpdated}</span>
-                    <span className="h-4 w-px bg-[#E5E7EB]" />
-                    <button
-                      type="button"
-                      onClick={() => void load()}
-                      className="flex items-center gap-1.5 font-semibold text-[#0F766E] transition-colors duration-300 hover:text-[#F59E0B]"
-                    >
-                      Perbarui
-                      <RotateCw size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {tiers.length === 0 ? (
-                  <p className="mt-6 rounded-2xl border border-dashed border-[#E5E7EB] px-6 py-10 text-center text-sm text-[#6B7280]">
-                    Belum ada kategori tiket untuk event ini.
-                  </p>
-                ) : (
-                  <div className="mt-6 rounded-2xl border border-[#E5E7EB] bg-[#FFFBF5] p-3 sm:p-4">
-                    <VenueMap
-                      layout={resolveLayout(event)}
-                      tiers={tiers}
-                      selected={selected}
-                      saleOpen={saleOpen}
-                      onSelect={add}
-                    />
-                  </div>
-                )}
-              </>
-            )}
+            ) : null}
           </div>
+        </header>
 
-          {/* ===== Kolom kanan: ringkasan pesanan ===== */}
-          <div className="lg:sticky lg:top-28 lg:h-fit">
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_40px_rgba(31,41,55,0.06)]">
-              <h2 className="text-base font-bold text-[#1F2937]">Detail Pemesanan</h2>
-
-              {selectedTier && selected && totalTickets > 0 ? (
-                <div className="mt-4 flex flex-col gap-3 border-b border-[#E5E7EB] pb-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#1F2937]">
-                        {selectedTier.nama_kelas}
-                      </p>
-                      <p className="text-xs text-[#6B7280]">
-                        {formatRupiah(selectedTier.harga)} / tiket · sisa {sisaOf(selectedTier)}
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold text-[#1F2937]">
-                      {formatRupiah(totalPrice)}
-                    </span>
-                  </div>
-
-                  {/* Atur jumlah tiket */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#6B7280]">Jumlah tiket</span>
-                    <div className="flex items-center gap-3 rounded-full border border-[#E5E7EB] bg-white px-2 py-1.5">
-                      <button
-                        type="button"
-                        onClick={() => remove(selectedTier)}
-                        aria-label={`Kurangi ${selectedTier.nama_kelas}`}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-[#0F766E] transition-colors duration-300 hover:bg-[#ECFDF5]"
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="w-4 text-center text-sm font-bold text-[#1F2937]">
-                        {selected.qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => add(selectedTier)}
-                        disabled={selected.qty >= maxQty}
-                        aria-label={`Tambah ${selectedTier.nama_kelas}`}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-white transition-transform duration-300 hover:scale-105 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] disabled:hover:scale-100"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8 lg:pt-10">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
+            {/* ===== kiri: denah + daftar kelas ===== */}
+            <div className="min-w-0">
+              {loading ? (
+                <div className="space-y-4" aria-hidden="true">
+                  <div className={`${styles.skel} h-8 w-1/2`} />
+                  <div className={`${styles.skel} h-96`} />
                 </div>
+              ) : error || !event ? (
+                <div role="alert" className={styles.error}>{error ?? "Event tidak ditemukan."}</div>
               ) : (
-                <p className="mt-4 text-sm text-[#9CA3AF]">
-                  Belum ada tiket dipilih. Klik zona di denah untuk memulai.
-                </p>
+                <>
+                  {!saleOpen && (
+                    <div role="status" className={styles.notice} style={{ marginTop: 0 }}>
+                      Penjualan tiket untuk event ini sedang tidak dibuka.
+                    </div>
+                  )}
+
+                  <div className="mt-0 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h2 className={`${styles.display} ${styles.secTitle}`}>Pilih zona</h2>
+                      <span className={styles.secBar} aria-hidden="true" />
+                      <p className={`${styles.hint} mt-3`}>
+                        Klik zona di denah atau pilih dari daftar. Satu kategori per pesanan, maksimal {MAX_TICKETS_PER_ORDER} tiket.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-[#9CA3AF]">Pembaruan {lastUpdated}</span>
+                      <button
+                        type="button"
+                        onClick={() => void load()}
+                        disabled={refreshing}
+                        className={`${styles.refresh} ${refreshing ? styles.spin : ""}`}
+                      >
+                        Perbarui <RotateCw size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {tiers.length === 0 ? (
+                    <p className="mt-6 rounded-2xl border-2 border-dashed border-[#E5E7EB] px-6 py-10 text-center text-sm text-[#6B7280]">
+                      Belum ada kategori tiket untuk event ini.
+                    </p>
+                  ) : (
+                    <>
+                      <div className={styles.mapCard}>
+                        <VenueMap layout={resolveLayout(event)} tiers={tiers} selected={selected} saleOpen={saleOpen} onSelect={add} />
+                      </div>
+
+                      <h3 className={`${styles.display} ${styles.secTitle} mt-10`} style={{ fontSize: "1.6rem" }}>Daftar kelas</h3>
+                      <ul className={styles.tiers}>
+                        {sortedTiers.map((t) => {
+                          const sisa = sisaOf(t);
+                          const habis = sisa === 0;
+                          const persen = t.kuota > 0 ? Math.min(100, (sisa / t.kuota) * 100) : 0;
+                          const tipis = !habis && persen <= 15;
+                          const isSel = selected?.id === t.id;
+                          return (
+                            <li key={t.id} className={tipis ? styles.low : ""} data-selected={isSel} data-out={habis}>
+                              <button
+                                type="button"
+                                className={styles.tierBtn}
+                                onClick={() => add(t)}
+                                disabled={habis || !saleOpen}
+                                aria-pressed={isSel}
+                              >
+                                <span className={styles.tierName}>{t.nama_kelas}</span>
+                                <span className={`${styles.display} ${styles.tierPrice}`}>{habis ? "Habis" : formatRupiah(t.harga)}</span>
+                                <span className={styles.tierBar}>
+                                  <span className={styles.tierTrack} aria-hidden="true">
+                                    <span className={styles.tierFill} style={{ width: `${persen}%` }} />
+                                  </span>
+                                  <span className={styles.tierLeft}>
+                                    {habis ? "Habis terjual" : tipis ? `Tinggal ${sisa}` : `${sisa.toLocaleString("id-ID")} tersisa`}
+                                  </span>
+                                </span>
+                              </button>
+                              {isSel && selected && (
+                                <div className={styles.stepper}>
+                                  <span>Jumlah tiket</span>
+                                  <div className={styles.qty}>
+                                    <button type="button" className={styles.qtyBtn} onClick={() => remove(t)} aria-label={`Kurangi ${t.nama_kelas}`}>
+                                      <Minus size={15} />
+                                    </button>
+                                    <span className={`${styles.display} ${styles.qtyNum}`} aria-live="polite">{selected.qty}</span>
+                                    <button
+                                      type="button"
+                                      className={`${styles.qtyBtn} ${styles.qtyPlus}`}
+                                      onClick={() => add(t)}
+                                      disabled={selected.qty >= maxQty}
+                                      aria-label={`Tambah ${t.nama_kelas}`}
+                                    >
+                                      <Plus size={15} />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  )}
+                </>
               )}
-
-              <div className="mt-4 flex flex-col items-end gap-0.5 text-right">
-                <span className="text-sm text-[#6B7280]">Total {totalTickets} Tiket</span>
-                <span className="text-base font-extrabold text-[#F59E0B]">
-                  {formatRupiah(totalPrice)}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleContinue}
-                disabled={totalTickets === 0 || !saleOpen}
-                className="mt-5 w-full rounded-full py-3 text-sm font-bold text-white transition-all duration-300 disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] enabled:bg-[#0F766E] enabled:shadow-[0_10px_26px_rgba(15,118,110,0.28)] enabled:hover:-translate-y-0.5 enabled:hover:bg-[#0D9488]"
-              >
-                Lanjutkan
-              </button>
             </div>
+
+            {/* ===== kanan: ringkasan pesanan (desktop) ===== */}
+            <aside className="hidden lg:sticky lg:top-8 lg:block lg:h-fit" aria-label="Detail pemesanan">
+              <div className={styles.summary}>
+                <div className={styles.sumTop}>
+                  <p className={styles.sumLabel}>Detail pemesanan</p>
+                  <p className={`${styles.display} ${styles.sumEvent}`}>{event?.nama_event ?? "—"}</p>
+                </div>
+                <div className={styles.perf} aria-hidden="true" />
+                <div className={styles.sumBottom}>
+                  {selectedTier && selected && totalTickets > 0 ? (
+                    <div className={styles.line}>
+                      <div className="min-w-0">
+                        <p className={styles.lineName}>{selectedTier.nama_kelas}</p>
+                        <p className={styles.lineSub}>
+                          {selected.qty} × {formatRupiah(selectedTier.harga)} · sisa {sisaOf(selectedTier)}
+                        </p>
+                      </div>
+                      <span className={`${styles.display} ${styles.lineAmt}`}>{formatRupiah(totalPrice)}</span>
+                    </div>
+                  ) : (
+                    <p className={styles.empty}>Belum ada tiket dipilih. Klik zona di denah atau pilih dari daftar kelas.</p>
+                  )}
+
+                  <div className={styles.total}>
+                    <span className={styles.totalLbl}>Total {totalTickets} tiket</span>
+                    <span className={`${styles.display} ${styles.totalAmt}`}>{formatRupiah(totalPrice)}</span>
+                  </div>
+
+                  <button type="button" onClick={handleContinue} disabled={!canContinue} className={`${styles.go} mt-5`}>
+                    Lanjutkan <ArrowRight size={18} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
+      </div>
+
+      {/* bar total tetap di bawah (mobile & tablet) */}
+      <div className={styles.dock}>
+        <div>
+          <div className={styles.dockLbl}>Total {totalTickets} tiket</div>
+          <div className={`${styles.display} ${styles.dockAmt}`}>{formatRupiah(totalPrice)}</div>
+        </div>
+        <button type="button" onClick={handleContinue} disabled={!canContinue} className={styles.go}>
+          Lanjutkan <ArrowRight size={18} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );
