@@ -99,6 +99,76 @@ export function isKategoriSlug(value: string): value is KategoriSlug {
   return value in KATEGORI_BY_SLUG;
 }
 
+/* ============================================================
+   Halaman /kategori/semua: gabungan seluruh kategori
+   ------------------------------------------------------------
+   "semua" BUKAN kategori acara, jadi sengaja tidak masuk KATEGORI.
+   Daftar KATEGORI dipakai admin (pilihan kategori event), navbar, dan
+   kartu kategori di landing. "semua" hanya tampilan di halaman kategori.
+   ============================================================ */
+
+export const SEMUA_SLUG = "semua" as const;
+export type PageSlug = KategoriSlug | typeof SEMUA_SLUG;
+export type PageDef = Omit<KategoriDef, "slug"> & { slug: PageSlug };
+
+export const SEMUA: PageDef = {
+  slug: SEMUA_SLUG,
+  label: "Semua",
+  tagline: "Semua panggung, satu tempat.",
+  blurb: "Seluruh acara dari semua kategori. Urutkan dari yang terdekat, termurah, atau terlaris.",
+  theme: {
+    bg: "#1F2937",
+    ink: "#FFFBF5",
+    muted: "rgba(255,251,245,0.72)",
+    accent: "#F59E0B",
+    onAccent: "#1F2937",
+    line: "rgba(255,251,245,0.22)",
+  },
+};
+
+/** Urutan tab di halaman kategori: Semua dulu, lalu tiap kategori. */
+export const PAGE_KATEGORI: PageDef[] = [SEMUA, ...KATEGORI];
+
+export const PAGE_BY_SLUG: Record<PageSlug, PageDef> = Object.fromEntries(
+  PAGE_KATEGORI.map((k) => [k.slug, k])
+) as Record<PageSlug, PageDef>;
+
+export function isPageSlug(value: string): value is PageSlug {
+  return Object.prototype.hasOwnProperty.call(PAGE_BY_SLUG, value);
+}
+
+/** Urutan daftar acara di halaman kategori. */
+export type SortKey = "terdekat" | "termurah" | "terlaris" | "terbaru";
+
+export function toSortKey(value?: string | string[] | null): SortKey | null {
+  const v = Array.isArray(value) ? value[0] : value;
+  return v === "terdekat" || v === "termurah" || v === "terlaris" || v === "terbaru" ? v : null;
+}
+
+/** Acara yang boleh tampil publik: draft belum, "selesai" sudah lewat. */
+export function tampilPublik(event: EventItem): boolean {
+  return event.status === "aktif" || event.status === "ditutup";
+}
+
+/** Total tiket terjual dari semua kelas tiket (0 bila belum ada penjualan). */
+export function totalTerjual(event: EventItem): number {
+  return (event.kategori_tiket ?? []).reduce((sum, k) => sum + (Number.isFinite(k.terjual) ? k.terjual : 0), 0);
+}
+
+/**
+ * Pembanding untuk sort: yang paling baru ditambahkan dulu.
+ * EventItem belum punya tanggal dibuat, jadi id terbesar dipakai sebagai penanda
+ * "terakhir ditambahkan". Kalau BE nanti mengirim createdAt, cukup ganti di sini.
+ */
+export function bandingTerbaru(a: EventItem, b: EventItem): number {
+  return b.id - a.id;
+}
+
+/** Pembanding untuk sort: terlaris dulu; kalau seri, acara yang tanggalnya lebih dekat. */
+export function bandingTerlaris(a: EventItem, b: EventItem): number {
+  return totalTerjual(b) - totalTerjual(a) || new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime();
+}
+
 /** Terima slug atau label ("Musik Live") dan kembalikan slug baku, atau null. */
 export function toSlug(value?: string | null): KategoriSlug | null {
   if (!value) return null;

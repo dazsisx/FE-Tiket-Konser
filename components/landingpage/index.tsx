@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Footer from "@/components/footer";
 import HeroAndTopEvents from "./hero-top-events";
 import { fetchEvents } from "@/utils/api";
@@ -9,7 +10,10 @@ export default async function LandingPage() {
 
   return (
     <div>
-      <HeroAndTopEvents events={events} />
+      {/* useSearchParams (filter ?kota=) wajib berada di dalam Suspense */}
+      <Suspense fallback={null}>
+        <HeroAndTopEvents events={events} />
+      </Suspense>
       <Footer />
     </div>
   );

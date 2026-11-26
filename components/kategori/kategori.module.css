@@ -78,8 +78,11 @@
   gap: 0.6rem;
 }
 @media (min-width: 860px) {
-  .switcher { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+  .switcher { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.75rem; }
 }
+/* tab "Semua": selebar baris di layar sempit supaya baris 2 kolom tidak pincang */
+.tabAll { grid-column: 1 / -1; }
+@media (min-width: 860px) { .tabAll { grid-column: auto; } }
 
 .tab {
   position: relative;
@@ -118,6 +121,7 @@
 .tabTop { display: flex; width: 100%; align-items: center; justify-content: space-between; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.14em; opacity: 0.85; }
 .tabLabel { font-size: clamp(1.7rem, 4.4vw, 2.5rem); font-weight: 800; line-height: 0.95; letter-spacing: 0.01em; }
 .tabCount { font-size: 0.78rem; font-weight: 500; opacity: 0.85; }
+@media (min-width: 860px) { .tabLabel { font-size: clamp(1.45rem, 2.5vw, 2.3rem); } }
 
 /* ---------- hero ---------- */
 
@@ -206,8 +210,20 @@
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 3.25rem; }
 .toolbarTitle { font-size: 2rem; font-weight: 800; line-height: 1; }
 .toolbarSub { margin-top: 0.25rem; font-size: 0.88rem; color: var(--muted); }
-.sort { display: inline-flex; padding: 0.2rem; border: 1.5px solid var(--line); border-radius: 999px; }
+.filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.filterChip {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.35rem 0.8rem; border: 1.5px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--ink); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.filterChip:hover { border-color: var(--ink); }
+.filterChip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sort { display: inline-flex; max-width: 100%; padding: 0.2rem; overflow-x: auto; border: 1.5px solid var(--line); border-radius: 999px; scrollbar-width: none; }
+.sort::-webkit-scrollbar { display: none; }
 .sortBtn {
+  flex: none;
+  white-space: nowrap;
   padding: 0.45rem 0.95rem;
   border: 0;
   border-radius: 999px;

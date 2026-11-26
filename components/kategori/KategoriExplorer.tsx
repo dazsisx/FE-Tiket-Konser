@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ArrowRight, Guitar, MapPin, Mic2, Music2, PartyPopper, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Guitar, LayoutGrid, MapPin, Mic2, Music2, PartyPopper, type LucideIcon } from "lucide-react";
 import {
   fetchEvents,
   formatRupiah,
@@ -14,17 +14,25 @@ import {
 import {
   KATEGORI,
   KATEGORI_BY_SLUG,
+  PAGE_BY_SLUG,
+  PAGE_KATEGORI,
+  bandingTerbaru,
+  bandingTerlaris,
   formatHariTanggal,
   formatJamWib,
-  isKategoriSlug,
+  isPageSlug,
   kategoriOf,
   potongTanggal,
   rentangHarga,
-  type KategoriSlug,
+  tampilPublik,
+  type PageSlug,
+  type SortKey,
 } from "@/utils/kategori";
+import { cocokKota, kotaLabelDariSlug, kotaOf } from "@/utils/kota";
 import styles from "./kategori.module.css";
 
-const ICONS: Record<KategoriSlug, LucideIcon> = {
+const ICONS: Record<PageSlug, LucideIcon> = {
+  semua: LayoutGrid,
   konser: Music2,
   festival: PartyPopper,
   "musik-live": Mic2,
@@ -37,12 +45,34 @@ const TIER_PREVIEW = 4;
 /** Data event dipakai ulang saat pengguna bolak-balik antar kategori. */
 let eventCache: EventItem[] | null = null;
 
-type SortKey = "terdekat" | "termurah";
+const SORT_KEYS: SortKey[] = ["terdekat", "termurah", "terlaris", "terbaru"];
+const SORT_LABEL: Record<SortKey, string> = {
+  terdekat: "Terdekat",
+  termurah: "Termurah",
+  terlaris: "Terlaris",
+  terbaru: "Terbaru",
+};
+
+// warna penegas di atas kertas tiket: pakai warna kategori yang cukup gelap
+const TICKET_ACCENT: Record<PageSlug, string> = {
+  semua: "#0F766E",
+  konser: "#0F766E",
+  festival: "#C42E16",
+  "musik-live": "#0B7A5A",
+  akustik: "#B4501E",
+};
+
+/** Cocokkan kata kunci pencarian dengan nama acara, artis, tempat, atau kota. */
+function cocokKata(e: EventItem, q: string): boolean {
+  const kata = q.trim().toLowerCase();
+  if (!kata) return true;
+  return `${e.nama_event} ${e.artis?.nama ?? ""} ${e.lokasi ?? ""} ${kotaOf(e) ?? ""}`.toLowerCase().includes(kata);
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-function themeVars(slug: KategoriSlug): CSSProperties {
-  const t = KATEGORI_BY_SLUG[slug].theme;
+function themeVars(slug: PageSlug): CSSProperties {
+  const t = PAGE_BY_SLUG[slug].theme;
   return {
     "--bg": t.bg,
     "--ink": t.ink,
@@ -50,8 +80,7 @@ function themeVars(slug: KategoriSlug): CSSProperties {
     "--accent": t.accent,
     "--on-accent": t.onAccent,
     "--line": t.line,
-    // warna penegas di atas kertas tiket: pakai warna kategori yang cukup gelap
-    "--ticket-accent": slug === "musik-live" ? "#0B7A5A" : slug === "konser" ? "#0F766E" : slug === "festival" ? "#C42E16" : "#B4501E",
+    "--ticket-accent": TICKET_ACCENT[slug],
     "--ticket-on": "#FFF8EA",
   } as CSSProperties;
 }
@@ -59,10 +88,24 @@ function themeVars(slug: KategoriSlug): CSSProperties {
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-export default function KategoriExplorer({ initialSlug }: { initialSlug: KategoriSlug }) {
+export default function KategoriExplorer({
+  initialSlug,
+  initialSort,
+  initialKota,
+  initialQ,
+}: {
+  initialSlug: PageSlug;
+  initialSort?: SortKey;
+  /** slug kota dari ?kota= (null/undefined = semua lokasi) */
+  initialKota?: string | null;
+  /** kata kunci dari ?q= (pencarian di navbar) */
+  initialQ?: string;
+}) {
   const pathname = usePathname();
-  const [slug, setSlug] = useState<KategoriSlug>(initialSlug);
-  const [sort, setSort] = useState<SortKey>("terdekat");
+  const [slug, setSlug] = useState<PageSlug>(initialSlug);
+  const [sort, setSort] = useState<SortKey>(initialSort ?? "terdekat");
+  const [kota, setKota] = useState<string | null>(initialKota ?? null);
+  const [q, setQ] = useState(initialQ ?? "");
   const [events, setEvents] = useState<EventItem[] | null>(eventCache);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -93,25 +136,44 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
   // Tombol back/forward browser: ikuti URL tanpa menunggu tirai
   useEffect(() => {
     const last = pathname.split("/").filter(Boolean).pop() ?? "";
-    if (isKategoriSlug(last) && last !== slugRef.current && !busyRef.current) {
+    if (isPageSlug(last) && last !== slugRef.current && !busyRef.current) {
       slugRef.current = last;
       setSlug(last);
     }
   }, [pathname]);
 
   const grouped = useMemo(() => {
-    const map: Record<KategoriSlug, EventItem[]> = { konser: [], festival: [], "musik-live": [], akustik: [] };
+    const map: Record<PageSlug, EventItem[]> = { semua: [], konser: [], festival: [], "musik-live": [], akustik: [] };
     (events ?? [])
       // draft belum boleh tampil publik; "selesai" sudah lewat
-      .filter((e) => e.status === "aktif" || e.status === "ditutup")
-      .forEach((e) => map[kategoriOf(e)].push(e));
+      .filter(tampilPublik)
+      .filter((e) => cocokKota(e, kota))
+      .filter((e) => cocokKata(e, q))
+      .forEach((e) => {
+        map[kategoriOf(e)].push(e);
+        map.semua.push(e);
+      });
     return map;
-  }, [events]);
+  }, [events, kota, q]);
+
+  // Chip filter bisa dilepas; URL ikut dibersihkan tanpa memuat ulang halaman
+  const lepas = useCallback((key: "kota" | "q") => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete(key);
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    if (key === "kota") setKota(null);
+    else setQ("");
+  }, []);
 
   const list = useMemo(() => {
     const rows = [...grouped[slug]];
     if (sort === "termurah") {
       rows.sort((a, b) => (rentangHarga(a)?.min ?? Infinity) - (rentangHarga(b)?.min ?? Infinity));
+    } else if (sort === "terlaris") {
+      rows.sort(bandingTerlaris);
+    } else if (sort === "terbaru") {
+      rows.sort(bandingTerbaru);
     } else {
       rows.sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
     }
@@ -120,7 +182,7 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
 
   /* ---------- transisi tirai ---------- */
 
-  const go = useCallback(async (target: KategoriSlug) => {
+  const go = useCallback(async (target: PageSlug) => {
     if (busyRef.current || target === slugRef.current) return;
     const curtain = curtainRef.current;
     const back = backRef.current;
@@ -131,7 +193,8 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
       slugRef.current = target;
       setSlug(target);
       window.scrollTo({ top: 0, behavior: "instant" });
-      window.history.pushState(null, "", `/kategori/${target}`);
+      // ?kota= dan ?q= ikut terbawa saat pindah kategori
+      window.history.pushState(null, "", `/kategori/${target}${window.location.search}`);
     };
 
     if (!curtain || !back || !front || !label) {
@@ -143,9 +206,9 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
     setBusy(true);
     curtain.classList.remove(styles.intro); // kalau pembuka halaman belum selesai
 
-    const to = KATEGORI_BY_SLUG[target];
-    const from = KATEGORI_BY_SLUG[slugRef.current];
-    const dir = KATEGORI.findIndex((k) => k.slug === target) > KATEGORI.findIndex((k) => k.slug === from.slug) ? 1 : -1;
+    const to = PAGE_BY_SLUG[target];
+    const from = PAGE_BY_SLUG[slugRef.current];
+    const dir = PAGE_KATEGORI.findIndex((k) => k.slug === target) > PAGE_KATEGORI.findIndex((k) => k.slug === from.slug) ? 1 : -1;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     // panel belakang = warna penegas tujuan, panel depan = warna halaman tujuan
@@ -225,9 +288,12 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
 
   /* ---------- tampilan ---------- */
 
-  const def = KATEGORI_BY_SLUG[slug];
-  const idx = KATEGORI.findIndex((k) => k.slug === slug);
-  const nextDef = KATEGORI[(idx + 1) % KATEGORI.length];
+  const def = PAGE_BY_SLUG[slug];
+  const isSemua = slug === "semua";
+  const idx = PAGE_KATEGORI.findIndex((k) => k.slug === slug);
+  const nextIdx = (idx + 1) % PAGE_KATEGORI.length;
+  const nextDef = PAGE_KATEGORI[nextIdx];
+  const nextName = nextDef.slug === "semua" ? "semua acara" : nextDef.label;
   const loading = events === null && !error;
   const jumlahKelas = list.reduce((n, e) => n + (e.kategori_tiket?.length ?? 0), 0);
   const termurah = list.reduce<number | null>((min, e) => {
@@ -250,21 +316,21 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
 
         {/* ===== pemilih kategori ===== */}
         <nav className={styles.switcher} aria-label="Kategori acara">
-          {KATEGORI.map((k, i) => {
+          {PAGE_KATEGORI.map((k, i) => {
             const Icon = ICONS[k.slug];
             const active = k.slug === slug;
             return (
               <button
                 key={k.slug}
                 type="button"
-                className={styles.tab}
+                className={`${styles.tab} ${k.slug === "semua" ? styles.tabAll : ""}`}
                 aria-current={active ? "true" : undefined}
                 aria-busy={busy || undefined}
                 disabled={busy && !active}
                 onClick={() => void go(k.slug)}
               >
                 <span className={styles.tabTop}>
-                  <span>{pad(i + 1)}</span>
+                  <span>{pad(i)}</span>
                   <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
                 </span>
                 <span className={`${styles.display} ${styles.tabLabel}`}>{k.label}</span>
@@ -279,7 +345,7 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
         {/* ===== isi: di-remount tiap ganti kategori supaya animasi masuk diputar ulang ===== */}
         <div key={slug}>
           <header className={styles.hero}>
-            <p className={styles.kicker}>Kategori {pad(idx + 1)} / {pad(KATEGORI.length)}</p>
+            <p className={styles.kicker}>{isSemua ? "Semua kategori" : `Kategori ${pad(idx)} / ${pad(KATEGORI.length)}`}</p>
 
             <h1 className={`${styles.display} ${styles.title}`} aria-label={def.label}>
               {Array.from(def.label).map((ch, i) =>
@@ -341,15 +407,29 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
 
           <div className={styles.toolbar}>
             <div>
-              <h2 className={`${styles.display} ${styles.toolbarTitle}`}>Tiket {def.label}</h2>
+              <h2 className={`${styles.display} ${styles.toolbarTitle}`}>{isSemua ? "Semua acara" : `Tiket ${def.label}`}</h2>
               <p className={styles.toolbarSub} role="status" aria-live="polite">
                 {loading ? "Memuat acara…" : `${list.length} acara, lengkap dengan kelas tiketnya`}
               </p>
+              {(kota || q) && (
+                <div className={styles.filters}>
+                  {kota && (
+                    <button type="button" className={styles.filterChip} onClick={() => lepas("kota")} aria-label={`Hapus filter lokasi ${kotaLabelDariSlug(kota)}`}>
+                      Lokasi: {kotaLabelDariSlug(kota)} <span aria-hidden="true">×</span>
+                    </button>
+                  )}
+                  {q && (
+                    <button type="button" className={styles.filterChip} onClick={() => lepas("q")} aria-label={`Hapus pencarian ${q}`}>
+                      Pencarian: “{q}” <span aria-hidden="true">×</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div className={styles.sort} role="group" aria-label="Urutkan acara">
-              {(["terdekat", "termurah"] as const).map((key) => (
+              {SORT_KEYS.map((key) => (
                 <button key={key} type="button" className={styles.sortBtn} aria-pressed={sort === key} onClick={() => setSort(key)}>
-                  {key === "terdekat" ? "Terdekat" : "Termurah"}
+                  {SORT_LABEL[key]}
                 </button>
               ))}
             </div>
@@ -367,14 +447,20 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
             </div>
           ) : list.length === 0 ? (
             <div className={styles.empty}>
-              <p className={`${styles.display} ${styles.emptyTitle}`}>Belum ada acara {def.label}</p>
-              <p className={styles.emptyText}>Acara untuk kategori ini belum dijadwalkan. Coba lihat {nextDef.label}.</p>
+              <p className={`${styles.display} ${styles.emptyTitle}`}>{isSemua ? "Belum ada acara" : `Belum ada acara ${def.label}`}</p>
+              <p className={styles.emptyText}>
+                {kota || q
+                  ? "Tidak ada acara yang cocok dengan filter ini. Lepas filter di atas untuk melihat semuanya."
+                  : isSemua
+                    ? "Belum ada acara yang dijadwalkan. Silakan cek lagi nanti."
+                    : `Acara untuk kategori ini belum dijadwalkan. Coba lihat ${nextName}.`}
+              </p>
             </div>
           ) : (
             <ul className={styles.list}>
               {list.map((event, i) => (
                 <li key={event.id} className={styles.rise} style={{ "--i": Math.min(i, 6) } as CSSProperties}>
-                  <TicketCard event={event} index={Math.min(i, 6)} slug={slug} />
+                  <TicketCard event={event} index={Math.min(i, 6)} />
                 </li>
               ))}
             </ul>
@@ -383,7 +469,7 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
           <div className={styles.next}>
             <button type="button" className={styles.nextBtn} disabled={busy} onClick={() => void go(nextDef.slug)}>
               <span>
-                <span className={styles.nextHint}>Lanjut ke kategori {pad(((idx + 1) % KATEGORI.length) + 1)}</span>
+                <span className={styles.nextHint}>{nextIdx === 0 ? "Kembali ke" : `Lanjut ke kategori ${pad(nextIdx)}`}</span>
                 <span className={`${styles.display} ${styles.nextLabel}`}>{nextDef.label}</span>
               </span>
               <ArrowRight className={styles.nextArrow} size={56} strokeWidth={1.4} aria-hidden="true" />
@@ -409,7 +495,7 @@ export default function KategoriExplorer({ initialSlug }: { initialSlug: Kategor
    Satu acara = satu tiket: poster | info | kelas tiket
    ============================================================ */
 
-function TicketCard({ event, index, slug }: { event: EventItem; index: number; slug: KategoriSlug }) {
+function TicketCard({ event, index }: { event: EventItem; index: number }) {
   const [open, setOpen] = useState(false);
   const poster = getImageUrl(event.poster);
   const { hari, bulan } = potongTanggal(event.tanggal);
@@ -431,7 +517,7 @@ function TicketCard({ event, index, slug }: { event: EventItem; index: number; s
           // eslint-disable-next-line @next/next/no-img-element
           <img className={styles.posterImg} src={poster} alt={`Poster ${event.nama_event}`} loading="lazy" />
         ) : (
-          <div className={`${styles.display} ${styles.posterEmpty}`} aria-hidden="true">{KATEGORI_BY_SLUG[slug].label}</div>
+          <div className={`${styles.display} ${styles.posterEmpty}`} aria-hidden="true">{KATEGORI_BY_SLUG[kategoriOf(event)].label}</div>
         )}
         <div className={styles.dateChip} aria-hidden="true">
           <span className={`${styles.display} ${styles.dateDay}`}>{hari}</span>

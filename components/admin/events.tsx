@@ -22,11 +22,12 @@ import {
   type KategoriTiket,
 } from "@/utils/api";
 import { LAYOUT_OPTIONS, resolveLayout } from "@/utils/venueLayouts";
+import { kotaOf, kotaOptions } from "@/utils/kota";
 
-type EventDraft = { nama_event: string; deskripsi: string; tanggal: string; lokasi: string; artis_id: string; venue_layout: string };
+type EventDraft = { nama_event: string; deskripsi: string; tanggal: string; lokasi: string; kota: string; artis_id: string; venue_layout: string };
 type TicketDraft = { nama_kelas: string; harga: string; kuota: string };
 
-const emptyEvent: EventDraft = { nama_event: "", deskripsi: "", tanggal: "", lokasi: "", artis_id: "", venue_layout: "" };
+const emptyEvent: EventDraft = { nama_event: "", deskripsi: "", tanggal: "", lokasi: "", kota: "", artis_id: "", venue_layout: "" };
 const emptyTicket: TicketDraft = { nama_kelas: "", harga: "", kuota: "" };
 
 // Status di database: draft | aktif | ditutup | selesai
@@ -128,6 +129,8 @@ export default function AdminEvents() {
       deskripsi: event.deskripsi ?? "",
       tanggal: toDateTimeInput(event.tanggal),
       lokasi: event.lokasi,
+      // event lama yang kolomnya masih kosong: isi dengan tebakan supaya admin tinggal mengecek
+      kota: event.kota ?? kotaOf(event) ?? "",
       artis_id: String(event.artis_id),
       venue_layout: event.venue_layout ?? "",
     });
@@ -313,7 +316,8 @@ export default function AdminEvents() {
             <label className="sm:col-span-2 text-sm font-semibold">Nama acara<input required value={eventDraft.nama_event} onChange={(event) => setEventDraft({ ...eventDraft, nama_event: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="text-sm font-semibold">Tanggal dan waktu<input required type="datetime-local" value={eventDraft.tanggal} onChange={(event) => setEventDraft({ ...eventDraft, tanggal: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="text-sm font-semibold">Artis<select required value={eventDraft.artis_id} onChange={(event) => setEventDraft({ ...eventDraft, artis_id: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]"><option value="">Pilih artis</option>{artists.map((artist) => <option key={artist.id} value={artist.id}>{artist.nama}</option>)}</select>{artists.length === 0 && <span className="mt-1 block text-xs font-normal text-amber-700">Tambahkan data artis terlebih dahulu.</span>}</label>
-            <label className="sm:col-span-2 text-sm font-semibold">Lokasi<input required value={eventDraft.lokasi} onChange={(event) => setEventDraft({ ...eventDraft, lokasi: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
+            <label className="text-sm font-semibold">Lokasi<input required placeholder="Nama venue" value={eventDraft.lokasi} onChange={(event) => setEventDraft({ ...eventDraft, lokasi: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
+            <label className="text-sm font-semibold">Kota<input required list="daftar-kota" placeholder="Contoh: Jakarta" maxLength={80} value={eventDraft.kota} onChange={(event) => setEventDraft({ ...eventDraft, kota: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /><datalist id="daftar-kota">{kotaOptions(events).map((option) => <option key={option.slug} value={option.label} />)}</datalist><span className="mt-1 block text-xs font-normal text-[#6B7280]">Dipakai filter lokasi di navbar. Pilih dari daftar supaya penulisannya seragam.</span></label>
             <label className="sm:col-span-2 text-sm font-semibold">Denah venue<select value={eventDraft.venue_layout} onChange={(event) => setEventDraft({ ...eventDraft, venue_layout: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]"><option value="">Otomatis dari lokasi ({resolveLayout({ lokasi: eventDraft.lokasi }).name})</option>{LAYOUT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span className="mt-1 block text-xs font-normal text-[#6B7280]">Menentukan bentuk denah zona di halaman pembelian tiket.</span></label>
             <label className="sm:col-span-2 text-sm font-semibold">Deskripsi<textarea rows={4} value={eventDraft.deskripsi} onChange={(event) => setEventDraft({ ...eventDraft, deskripsi: event.target.value })} className="mt-1.5 w-full resize-y rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-[#B7C8BF] p-3 text-sm text-[#475569]"><span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#EAF4F0] text-[#0F766E]"><ImagePlus size={18} /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Poster acara</span><span className="block truncate text-xs text-[#6B7280]">{poster?.name ?? "PNG, JPG, WEBP hingga 5 MB"}</span></span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => setPoster(event.target.files?.[0] ?? null)} className="sr-only" /></label>

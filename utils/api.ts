@@ -54,6 +54,8 @@ export type EventItem = {
   deskripsi: string | null;
   tanggal: string; // ISO date string
   lokasi: string;
+  /** Kota tempat acara (kolom events.kota). Kosong pada event lama: FE menebaknya dari `lokasi` (utils/kota.ts). */
+  kota?: string | null;
   poster: string | null;
   artis_id: number;
     status: "draft" | "aktif" | "ditutup" | "selesai";

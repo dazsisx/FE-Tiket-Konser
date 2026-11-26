@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Big_Shoulders } from "next/font/google";
 import {
   ArrowRight,
@@ -9,21 +10,35 @@ import {
   ChevronRight,
   Clock,
   Guitar,
-  LayoutGrid,
   MapPin,
   Megaphone,
   Mic2,
   Music2,
   PartyPopper,
   ThumbsUp,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   type EventItem,
+  fetchOrderHistory,
+  fetchWishlist,
   getImageUrl,
   getHargaTermurah,
 } from "@/utils/api";
-import { KATEGORI, kategoriOf, potongTanggal, type KategoriSlug } from "@/utils/kategori";
+import { rekomendasiDariSinyal } from "@/utils/rekomendasi";
+import {
+  KATEGORI,
+  bandingTerbaru,
+  bandingTerlaris,
+  kategoriOf,
+  potongTanggal,
+  tampilPublik,
+  totalTerjual,
+  type KategoriSlug,
+} from "@/utils/kategori";
+import { cocokKota, kotaLabelDariSlug, kotaOptions, toKotaParam } from "@/utils/kota";
 import styles from "./hero-top-events.module.css";
 
 /**
@@ -279,7 +294,20 @@ function EventCard({ event, rank, className = "" }: { event: EventItem; rank?: n
 
 /* ---------- rail horizontal ---------- */
 
-function Rail({ icon, title, hint, children }: { icon: LucideIcon; title: string; hint?: string; children: ReactNode }) {
+function Rail({
+  icon,
+  title,
+  hint,
+  href = "/kategori/semua",
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  hint?: string;
+  /** tujuan "Lihat semua" */
+  href?: string;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const move = (dir: 1 | -1) => {
     const el = ref.current;
@@ -292,7 +320,7 @@ function Rail({ icon, title, hint, children }: { icon: LucideIcon; title: string
         <div className="flex items-start justify-between gap-4">
           <SectionTitle icon={icon} title={title} hint={hint} />
           <div className="flex items-center gap-4 pt-1">
-            <Link href="/kategori/konser" className="text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
+            <Link href={href} className="text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
               Lihat semua
             </Link>
             <ArrowButtons onPrev={() => move(-1)} onNext={() => move(1)} className="hidden sm:flex" />
@@ -311,32 +339,72 @@ function Rail({ icon, title, hint, children }: { icon: LucideIcon; title: string
 /* ---------- komponen utama ---------- */
 
 export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
-  const [tab, setTab] = useState<"kategori" | "lokasi">("kategori");
-  const [lokasi, setLokasi] = useState<string | null>(null);
+  // Filter kota dipilih lewat navbar dan disimpan di URL (?kota=jakarta)
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const kota = toKotaParam(searchParams.get("kota"));
+  const kotaLabel = kota ? (kotaOptions(events).find((o) => o.slug === kota)?.label ?? kotaLabelDariSlug(kota)) : null;
+  /** tambahkan ?kota= ke tautan internal supaya pilihan kota ikut terbawa */
+  const withKota = (path: string) => (kota ? `${path}${path.includes("?") ? "&" : "?"}kota=${kota}` : path);
+  const hapusKota = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("kota");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  // Sinyal rekomendasi: event yang disimpan (wishlist) atau dibeli pelanggan yang sedang login.
+  // Tanpa login / bukan pelanggan / gagal dimuat -> rail Rekomendasi tampil seperti biasa.
+  const { user } = useAuth();
+  const userId = user?.role === "pelanggan" ? user.id : null;
+  const [sinyal, setSinyal] = useState<{ userId: number; eventIds: number[] } | null>(null);
+
+  useEffect(() => {
+    if (userId === null) return;
+    let batal = false;
+    Promise.allSettled([fetchWishlist(), fetchOrderHistory()]).then(([wishlist, riwayat]) => {
+      if (batal) return;
+      const ids = new Set<number>();
+      if (wishlist.status === "fulfilled") wishlist.value.forEach((w) => ids.add(w.event_id));
+      if (riwayat.status === "fulfilled") {
+        riwayat.value.forEach((p) => {
+          // pesanan yang ditolak / kedaluwarsa bukan tanda minat
+          if (p.status_bayar === "lunas" || p.status_bayar === "pending") ids.add(p.event_id);
+        });
+      }
+      setSinyal({ userId, eventIds: [...ids] });
+    });
+    return () => {
+      batal = true;
+    };
+  }, [userId]);
+
+  // abaikan sinyal milik akun sebelumnya (mis. setelah logout lalu login sebagai orang lain)
+  const sinyalIds = sinyal && sinyal.userId === userId ? sinyal.eventIds : [];
 
   // Jumlah acara per kategori (draft & selesai tidak dihitung)
   const jumlah: Record<KategoriSlug, number> = { konser: 0, festival: 0, "musik-live": 0, akustik: 0 };
   events.forEach((e) => {
-    if (e.status === "aktif" || e.status === "ditutup") jumlah[kategoriOf(e)] += 1;
+    if (cocokKota(e, kota) && (e.status === "aktif" || e.status === "ditutup")) jumlah[kategoriOf(e)] += 1;
   });
-
-  // Lokasi dari data asli: 8 lokasi dengan event terbanyak
-  const lokasiCount = new Map<string, number>();
-  events.forEach((e) => {
-    if (e.lokasi) lokasiCount.set(e.lokasi, (lokasiCount.get(e.lokasi) ?? 0) + 1);
-  });
-  const lokasiList = [...lokasiCount.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([name]) => name);
 
   const banners = events.slice(0, 6);
-  const filtered = lokasi ? events.filter((e) => e.lokasi === lokasi) : events;
-  const topEvents = filtered.slice(0, 8);
-  const newestEvents = [...filtered]
-    .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
-    .slice(0, 10);
-  const recommendedEvents = filtered.slice(8, 16);
+  // Hanya acara yang juga tampil di /kategori/semua, supaya "Lihat semua" tidak menjanjikan isi yang berbeda
+  const filtered = events.filter((e) => cocokKota(e, kota)).filter(tampilPublik);
+  // Teratas = tiket terlaris; kalau belum ada penjualan, otomatis jatuh ke acara yang paling dekat tanggalnya
+  const topEvents = [...filtered].sort(bandingTerlaris).slice(0, 8);
+  const topAdaPenjualan = topEvents.some((e) => totalTerjual(e) > 0);
+  // Terbaru = terakhir ditambahkan (bukan tanggal acara), sama dengan urutan "Terbaru" di /kategori/semua
+  const newestEvents = [...filtered].sort(bandingTerbaru).slice(0, 10);
+  // Rekomendasi: dari event yang disimpan/dibeli pengguna (kategori & artis yang sama).
+  // Kalau belum ada sinyal, isi dengan acara lain yang belum tampil di rail Teratas.
+  const topIds = new Set(topEvents.map((e) => e.id));
+  const personal = rekomendasiDariSinyal(events, filtered, sinyalIds, topIds);
+  const personalisasi = personal.items.length > 0;
+  const recommendedEvents = personalisasi
+    ? personal.items
+    : filtered.filter((e) => !topIds.has(e.id)).slice(0, 8);
 
   return (
     <section className={`${display.variable} ${styles.root} bg-[#FFFBF5] pt-24 pb-24 sm:pt-28`}>
@@ -365,77 +433,66 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* ===== Kategori / lokasi ===== */}
+          {/* ===== Kategori ===== */}
           <Reveal className="mt-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className={styles.seg2} role="group" aria-label="Jelajahi berdasarkan">
-                <button type="button" aria-pressed={tab === "kategori"} onClick={() => setTab("kategori")} className={styles.seg2Btn}>
-                  <LayoutGrid size={16} />
-                  Kategori
+              <h2 className={`${styles.display} text-2xl font-extrabold tracking-wide text-[#1F2937] uppercase`}>Jelajahi kategori</h2>
+              {kotaLabel ? (
+                <button
+                  type="button"
+                  onClick={hapusKota}
+                  aria-label={`Hapus filter lokasi ${kotaLabel}`}
+                  className={styles.chip}
+                  aria-pressed="true"
+                >
+                  <MapPin size={15} className="shrink-0" aria-hidden="true" />
+                  <span className="truncate">{kotaLabel}</span>
+                  <X size={14} aria-hidden="true" />
                 </button>
-                {lokasiList.length > 1 && (
-                  <button type="button" aria-pressed={tab === "lokasi"} onClick={() => setTab("lokasi")} className={styles.seg2Btn}>
-                    <MapPin size={16} />
-                    Lokasi
-                  </button>
-                )}
-              </div>
-              <p className="text-sm text-[#6B7280]">
-                {tab === "kategori" ? "Pilih jenis acara" : "Saring acara berdasarkan tempat"}
-              </p>
+              ) : (
+                <p className="text-sm text-[#6B7280]">Pilih jenis acara, atau saring lewat Lokasi di atas</p>
+              )}
             </div>
 
-            {tab === "kategori" && (
-              <div className={`${styles.cats} mt-5`}>
-                {KATEGORI.map(({ label, slug }, i) => {
-                  const Icon = ICONS[slug];
-                  return (
-                    <Link key={slug} href={`/kategori/${slug}`} className={styles.cat}>
-                      <span className={styles.catTop}>
-                        <span>{pad(i + 1)}</span>
-                        <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-                      </span>
-                      <span className={`${styles.display} ${styles.catLabel}`}>{label}</span>
-                      <span className={`${styles.catCount} flex items-center justify-between`}>
-                        {jumlah[slug]} acara
-                        <ArrowRight size={16} className={styles.catGo} aria-hidden="true" />
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-
-            {tab === "lokasi" && (
-              <div className="mt-5 flex flex-wrap gap-2.5">
-                <button type="button" aria-pressed={lokasi === null} onClick={() => setLokasi(null)} className={styles.chip}>
-                  <LayoutGrid size={15} />
-                  Semua
-                </button>
-                {lokasiList.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    aria-pressed={lokasi === name}
-                    onClick={() => setLokasi(lokasi === name ? null : name)}
-                    className={styles.chip}
-                  >
-                    <MapPin size={15} className="shrink-0" />
-                    <span className="truncate">{name}</span>
-                    <span className="text-xs opacity-70">{lokasiCount.get(name)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className={`${styles.cats} mt-5`}>
+              {KATEGORI.map(({ label, slug }, i) => {
+                const Icon = ICONS[slug];
+                return (
+                  <Link key={slug} href={withKota(`/kategori/${slug}`)} className={styles.cat}>
+                    <span className={styles.catTop}>
+                      <span>{pad(i + 1)}</span>
+                      <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+                    </span>
+                    <span className={`${styles.display} ${styles.catLabel}`}>{label}</span>
+                    <span className={`${styles.catCount} flex items-center justify-between`}>
+                      {jumlah[slug]} acara
+                      <ArrowRight size={16} className={styles.catGo} aria-hidden="true" />
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
           </Reveal>
 
           {filtered.length === 0 && events.length > 0 && (
-            <p className="mt-10 text-sm text-[#9CA3AF]">Belum ada event di lokasi ini.</p>
+            <p className="mt-10 text-sm text-[#6B7280]">
+              Belum ada event di {kotaLabel ?? "lokasi ini"}.{" "}
+              {kota && (
+                <button type="button" onClick={hapusKota} className="font-semibold text-[#0F766E] underline-offset-4 hover:underline">
+                  Lihat semua lokasi
+                </button>
+              )}
+            </p>
           )}
 
           {/* ===== Event Teratas ===== */}
           {topEvents.length > 0 && (
-            <Rail icon={Megaphone} title="Event Teratas" hint="Paling banyak dilihat minggu ini">
+            <Rail
+              icon={Megaphone}
+              title="Event Teratas"
+              hint={topAdaPenjualan ? "Tiket paling laris saat ini" : "Acara yang akan segera hadir"}
+              href={withKota("/kategori/semua?urut=terlaris")}
+            >
               {topEvents.map((event, i) => (
                 <EventCard key={event.id} event={event} rank={i + 1} className={railCard} />
               ))}
@@ -448,7 +505,7 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
               <Reveal>
                 <div className="flex items-start justify-between gap-4">
                   <SectionTitle icon={Clock} title="Event Terbaru" />
-                  <Link href="/kategori/konser" className="pt-1 text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
+                  <Link href={withKota("/kategori/semua?urut=terbaru")} className="pt-1 text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
                     Lihat semua
                   </Link>
                 </div>
@@ -465,7 +522,12 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
 
           {/* ===== Rekomendasi ===== */}
           {recommendedEvents.length > 0 && (
-            <Rail icon={ThumbsUp} title="Rekomendasi Untukmu">
+            <Rail
+              icon={ThumbsUp}
+              title={personalisasi ? "Rekomendasi Untukmu" : "Jelajahi Acara Lainnya"}
+              hint={personalisasi ? "Berdasarkan event yang kamu simpan dan beli" : undefined}
+              href={withKota(personalisasi && personal.kategoriUtama ? `/kategori/${personal.kategoriUtama}` : "/kategori/semua")}
+            >
               {recommendedEvents.map((event) => (
                 <EventCard key={event.id} event={event} className={railCard} />
               ))}

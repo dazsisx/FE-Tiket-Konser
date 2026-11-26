@@ -1,16 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Big_Shoulders } from "next/font/google";
-import { Search, User, LogOut, ChevronDown, LayoutDashboard, Heart, History } from "lucide-react";
+import { Check, ChevronDown, Heart, History, LayoutDashboard, LogOut, Search, User } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { KATEGORI } from "@/utils/kategori";
+import { kotaOptions, toKotaParam } from "@/utils/kota";
+import SearchBox from "./SearchBox";
+import { KategoriMenu, LokasiMenu, type Panel } from "./FilterMenus";
+import { useNavEvents } from "./useNavEvents";
 
 // Font judul yang sama dengan landing & halaman kategori
 const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+
+/** Logo. Dipakai juga oleh kerangka sementara saat navbar dimuat. */
+export function NavLogo() {
+  return (
+    <Link href="/" aria-label="DRStar, ke beranda" className="flex shrink-0 items-center">
+      <Image src="/logobaru.png" alt="DRStar" width={707} height={353} priority className="h-9 w-auto" />
+    </Link>
+  );
+}
 
 /**
  * Link teks dengan garis emas yang "menarik" masuk saat hover / aktif.
@@ -79,42 +92,61 @@ function MobileLink({
 export default function Navbar() {
   const { user, isLoading, logout } = useAuth();
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const events = useNavEvents();
+
+  const [panel, setPanel] = useState<Panel>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const profileRef = useRef<HTMLDivElement>(null);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
+  const kota = toKotaParam(searchParams.get("kota"));
+  const kotaList = kotaOptions(events);
+  const kotaQs = kota ? `?kota=${kota}` : "";
+  const profileOpen = panel === "profile";
+
+  // Klik di luar navbar menutup kartu yang terbuka
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-      setProfileMenuOpen(false);
+    if (!panel) return;
+    const onDown = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setPanel(null);
     };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [panel]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Esc menutup menu profil / menu mobile
+  // Esc menutup semua kartu, menu mobile, dan pencarian layar penuh
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setProfileMenuOpen(false);
+        setPanel(null);
         setMobileMenuOpen(false);
+        setMobileSearchOpen(false);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+
+  // Pindah halaman: tutup semuanya (disesuaikan saat render, bukan lewat effect)
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    setPanel(null);
+    setMobileMenuOpen(false);
+    setMobileSearchOpen(false);
+  }
+
+  function pilihKota(slug: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (slug) params.set("kota", slug);
+    else params.delete("kota");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    setPanel(null);
+    setMobileMenuOpen(false);
+  }
 
   // Wishlist & histori adalah fitur pelanggan. Tamu juga melihatnya (histori bisa dicek tanpa login,
   // wishlist mengarahkan ke login). Akun petugas memakai dashboard sendiri.
@@ -133,69 +165,44 @@ export default function Navbar() {
 
   return (
     <>
-      {profileMenuOpen && (
+      {/* Latar buram di belakang kartu yang terbuka (kategori, lokasi, pencarian, profil) */}
+      {panel && (
         <button
           type="button"
-          aria-label="Tutup menu profil"
-          onClick={() => setProfileMenuOpen(false)}
-          className="fixed inset-0 z-40 hidden bg-[#1F2937]/20 backdrop-blur-[1px] md:block"
+          tabIndex={-1}
+          aria-label="Tutup"
+          onClick={() => setPanel(null)}
+          className="fixed inset-0 z-40 hidden cursor-default bg-[#1F2937]/25 backdrop-blur-[6px] md:block"
         />
       )}
-      <div
-        className={`${display.variable} fixed top-0 right-0 left-0 z-50 flex justify-center px-4 transition-all duration-500 ${
-          scrolled ? "pt-3" : "pt-4"
-        }`}
+
+      <header
+        ref={navRef}
+        className={`${display.variable} fixed inset-x-0 top-0 z-50 border-b border-[#E7E2D6] bg-[#FFFBF5]`}
       >
         <nav
-          className={`relative flex h-16 items-center gap-4 transition-all duration-500 ${
-            scrolled
-              ? "navbar-liquid-glass w-[95%] max-w-[1000px] rounded-full px-6 ring-1 ring-[#F59E0B]/30 xl:max-w-[1180px]"
-              : "w-full max-w-[1200px] bg-transparent px-5"
-          }`}
+          aria-label="Navigasi utama"
+          className="mx-auto flex h-16 max-w-[1200px] items-center gap-3 px-4 sm:px-6"
         >
-          {/* Logo */}
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-            <Image
-              src="/logobaru.png"
-              alt="DRStar"
-              width={180}
-              height={180}
-              priority
-              className="h-34 w-34 object-contain transition-transform duration-200 group-hover:scale-105"
-            />
-          </Link>
+          <NavLogo />
 
-          {/* Search bar */}
-          <div className="hidden min-w-[9rem] flex-1 items-center justify-between rounded-full border border-[#E5E7EB] bg-white pl-5 pr-1.5 shadow-sm md:flex">
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Cari di DRStar"
-              className="w-full bg-transparent py-2 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] focus:outline-none"
-            />
-            <button
-              aria-label="Cari"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0F766E] text-white shadow-[0_8px_20px_rgba(15,118,110,0.25)] transition-transform hover:scale-105 hover:bg-[#0D9488]"
-            >
-              <Search size={15} />
-            </button>
+          {/* Kategori & lokasi */}
+          <div className="flex shrink-0 items-center gap-2 md:ml-1">
+            <KategoriMenu panel={panel} setPanel={setPanel} events={events} kota={kota} />
+            <LokasiMenu panel={panel} setPanel={setPanel} events={events} kota={kota} onPick={pilihKota} />
           </div>
 
-          {/* Jalan pintas kategori (layar lebar). Di beranda disembunyikan karena kotak kategori sudah tampil di halaman itu. */}
-          <div className={`hidden shrink-0 items-center gap-5 ${pathname === "/" ? "" : "xl:flex"}`}>
-            {KATEGORI.map((k) => (
-              <Link
-                key={k.slug}
-                href={`/kategori/${k.slug}`}
-                className="relative py-1 text-[1.15rem] font-extrabold uppercase leading-none tracking-wide text-[#1F2937] transition-colors [font-family:var(--font-display),'Arial_Narrow',Impact,sans-serif] hover:text-[#0F766E] after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:rounded-full after:bg-[#F59E0B] after:transition-transform after:duration-300 hover:after:scale-x-100"
-              >
-                {k.label}
-              </Link>
-            ))}
+          {/* Pencarian (desktop). Di mobile diganti ikon yang membuka layar penuh. */}
+          <div className="hidden min-w-0 flex-1 md:flex">
+            <SearchBox
+              events={events}
+              kota={kota}
+              open={panel === "search"}
+              onOpenChange={(o) => setPanel((p) => (o ? "search" : p === "search" ? null : p))}
+            />
           </div>
 
-          {/* Right menu */}
+          {/* Menu kanan */}
           <div className="hidden shrink-0 items-center gap-4 md:flex">
             {showCustomerLinks && (
               <>
@@ -216,37 +223,34 @@ export default function Navbar() {
             {isLoading ? (
               <div className="h-9 w-9 animate-pulse rounded-full bg-[#E5E7EB]" />
             ) : user ? (
-              <div className="relative" ref={profileRef}>
+              <div className="relative">
                 <button
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="flex items-center gap-2 rounded-full border-[1.5px] border-[#E5E7EB] py-1.5 pl-1.5 pr-3 transition-all duration-200 hover:border-[#0F766E]"
+                  onClick={() => setPanel(profileOpen ? null : "profile")}
+                  aria-expanded={profileOpen}
+                  className="flex items-center gap-2 rounded-full border-[1.5px] border-[#DAD3C2] py-1.5 pl-1.5 pr-3 transition-all duration-200 hover:border-[#0F766E]"
                 >
                   {user.avatar_url ? (
                     <Image src={user.avatar_url} alt="Avatar" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
                   ) : (
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F766E] text-xs font-bold text-white">{initials}</span>
                   )}
-                  <span className="max-w-[100px] truncate text-sm font-semibold text-[#1F2937]">
-                    {user.nama}
-                  </span>
+                  <span className="max-w-[100px] truncate text-sm font-semibold text-[#1F2937]">{user.nama}</span>
                   <ChevronDown
                     size={14}
-                    className={`text-[#6B7280] transition-transform duration-200 ${
-                      profileMenuOpen ? "rotate-180" : ""
-                    }`}
+                    className={`text-[#6B7280] transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}
                   />
                 </button>
 
                 <div
-                  className={`absolute right-0 top-full z-50 mt-2 w-52 origin-top-right rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-[0_12px_32px_rgba(15,118,110,0.15)] transition-all duration-200 ${
-                    profileMenuOpen
+                  className={`absolute right-0 top-full z-50 mt-2 w-52 origin-top-right rounded-2xl border border-[#E7E2D6] bg-white p-2 shadow-[0_18px_40px_rgba(31,41,55,0.14)] transition-all duration-200 ${
+                    profileOpen
                       ? "translate-y-0 scale-100 opacity-100"
                       : "pointer-events-none -translate-y-2 scale-95 opacity-0"
                   }`}
                 >
                   <Link
                     href="/profile"
-                    onClick={() => setProfileMenuOpen(false)}
+                    onClick={() => setPanel(null)}
                     className="mb-1 flex items-center gap-3 rounded-xl border-b border-[#E5E7EB] px-3 py-3 transition-colors hover:bg-[#ECFDF5]"
                   >
                     {user.avatar_url ? (
@@ -261,7 +265,7 @@ export default function Navbar() {
                   </Link>
                   <Link
                     href="/profile"
-                    onClick={() => setProfileMenuOpen(false)}
+                    onClick={() => setPanel(null)}
                     className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[#1F2937] transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E]"
                   >
                     <User size={16} />
@@ -271,7 +275,7 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/wishlist"
-                        onClick={() => setProfileMenuOpen(false)}
+                        onClick={() => setPanel(null)}
                         aria-current={wishlistActive ? "page" : undefined}
                         className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
                           wishlistActive ? "bg-[#ECFDF5] text-[#0F766E]" : "text-[#1F2937]"
@@ -282,7 +286,7 @@ export default function Navbar() {
                       </Link>
                       <Link
                         href="/pembelian"
-                        onClick={() => setProfileMenuOpen(false)}
+                        onClick={() => setPanel(null)}
                         aria-current={historiActive ? "page" : undefined}
                         className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
                           historiActive ? "bg-[#ECFDF5] text-[#0F766E]" : "text-[#1F2937]"
@@ -296,7 +300,7 @@ export default function Navbar() {
                   {user.role === "admin" && (
                     <Link
                       href="/admin"
-                      onClick={() => setProfileMenuOpen(false)}
+                      onClick={() => setPanel(null)}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[#1F2937] transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E]"
                     >
                       <LayoutDashboard size={16} />
@@ -305,7 +309,7 @@ export default function Navbar() {
                   )}
                   <button
                     onClick={() => {
-                      setProfileMenuOpen(false);
+                      setPanel(null);
                       logout();
                     }}
                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#DC2626] transition-colors hover:bg-red-50"
@@ -316,85 +320,96 @@ export default function Navbar() {
                 </div>
               </div>
             ) : (
-              <>
-                <Link
-                  href="/auth/login"
-                  className="rounded-full border-[1.5px] border-[#0F766E] px-5 py-2 text-sm font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#B45309]"
-                >
-                  Masuk
-                </Link>
-                <Link
-                  href="/auth/register"
-                  className="rounded-full bg-[#0F766E] px-5 py-2 text-sm font-bold text-white shadow-[0_4px_14px_rgba(15,118,110,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] hover:shadow-[0_10px_26px_rgba(15,118,110,0.30)]"
-                >
-                  Daftar
-                </Link>
-              </>
+              // Satu pintu masuk. Halaman login punya tautan "Daftar" untuk pengguna baru.
+              <Link
+                href="/auth/login"
+                className="inline-flex h-10 items-center rounded-full bg-[#0F766E] px-5 text-sm font-bold text-white transition-colors hover:bg-[#0D9488]"
+              >
+                Masuk<span className="hidden xl:inline">&nbsp;/ Daftar</span>
+              </Link>
             )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="ml-auto flex flex-col items-center justify-center gap-1.5 p-2 md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Buka atau tutup menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            <span
-              className={`block h-0.5 w-6 rounded-full bg-[#1F2937] transition-all duration-300 ${
-                mobileMenuOpen ? "translate-y-2 rotate-45" : ""
-              }`}
-            />
-            <span
-              className={`block h-0.5 w-6 rounded-full bg-[#1F2937] transition-all duration-300 ${
-                mobileMenuOpen ? "opacity-0" : "opacity-100"
-              }`}
-            />
-            <span
-              className={`block h-0.5 w-6 rounded-full bg-[#1F2937] transition-all duration-300 ${
-                mobileMenuOpen ? "-translate-y-2 -rotate-45" : ""
-              }`}
-            />
-          </button>
+          {/* Mobile: cari + hamburger */}
+          <div className="ml-auto flex items-center gap-1 md:hidden">
+            <button
+              type="button"
+              aria-label="Cari"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setMobileSearchOpen(true);
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-[#1F2937] hover:bg-[#F6F1E4]"
+            >
+              <Search size={20} aria-hidden="true" />
+            </button>
+            <button
+              className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-full hover:bg-[#F6F1E4]"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Buka atau tutup menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <span
+                className={`block h-0.5 w-5 rounded-full bg-[#1F2937] transition-all duration-300 ${
+                  mobileMenuOpen ? "translate-y-2 rotate-45" : ""
+                }`}
+              />
+              <span
+                className={`block h-0.5 w-5 rounded-full bg-[#1F2937] transition-all duration-300 ${
+                  mobileMenuOpen ? "opacity-0" : "opacity-100"
+                }`}
+              />
+              <span
+                className={`block h-0.5 w-5 rounded-full bg-[#1F2937] transition-all duration-300 ${
+                  mobileMenuOpen ? "-translate-y-2 -rotate-45" : ""
+                }`}
+              />
+            </button>
+          </div>
         </nav>
-      </div>
+      </header>
+
+      {/* Mobile: pencarian layar penuh */}
+      {mobileSearchOpen && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#FFFBF5] p-4 md:hidden" role="dialog" aria-label="Pencarian">
+          <div className="flex items-center gap-2">
+            <SearchBox
+              variant="sheet"
+              events={events}
+              kota={kota}
+              open
+              onOpenChange={() => {}}
+              onDone={() => setMobileSearchOpen(false)}
+            />
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen(false)}
+              className="shrink-0 px-2 py-2 text-sm font-semibold text-[#0F766E]"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile menu overlay */}
       <div
-        className={`fixed inset-0 z-40 transition-all duration-300 md:hidden ${
-          mobileMenuOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
+        className={`${display.variable} fixed inset-0 z-40 transition-all duration-300 md:hidden ${
+          mobileMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
+        <div className="absolute inset-0 bg-[#1F2937]/25 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
         <div
-          className="absolute inset-0 bg-[#1F2937]/[0.08] backdrop-blur-sm"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-        <div
-          className={`absolute top-20 right-4 left-4 rounded-3xl border border-[#E5E7EB] bg-white/[0.97] p-6 shadow-2xl backdrop-blur-xl transition-all duration-300 ${
-            mobileMenuOpen
-              ? "translate-y-0 scale-100 opacity-100"
-              : "-translate-y-4 scale-95 opacity-0"
+          className={`absolute top-[4.5rem] right-4 left-4 max-h-[calc(100vh-5.5rem)] overflow-y-auto rounded-3xl border border-[#E7E2D6] bg-[#FFFBF5] p-6 shadow-2xl transition-all duration-300 ${
+            mobileMenuOpen ? "translate-y-0 scale-100 opacity-100" : "-translate-y-4 scale-95 opacity-0"
           }`}
         >
-          <div className="mb-4 flex items-center rounded-full bg-[#FFFBF5] px-4 py-2">
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Cari di DRStar"
-              className="w-full bg-transparent text-sm text-[#1F2937] placeholder:text-[#9CA3AF] focus:outline-none"
-            />
-            <Search size={16} className="text-[#9CA3AF]" />
-          </div>
-
           <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Kategori</p>
-          <div className="mb-3 grid grid-cols-2 gap-2">
+          <div className="mb-4 grid grid-cols-2 gap-2">
             {KATEGORI.map((k) => (
               <Link
                 key={k.slug}
-                href={`/kategori/${k.slug}`}
+                href={`/kategori/${k.slug}${kotaQs}`}
                 onClick={() => setMobileMenuOpen(false)}
                 className="rounded-xl border-[1.5px] border-[#E5E7EB] px-4 py-3 text-xl font-extrabold uppercase leading-none text-[#1F2937] transition-colors [font-family:var(--font-display),'Arial_Narrow',Impact,sans-serif] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
               >
@@ -402,6 +417,33 @@ export default function Navbar() {
               </Link>
             ))}
           </div>
+
+          {kotaList.length > 0 && (
+            <>
+              <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Lokasi</p>
+              <div className="mb-4 flex flex-wrap gap-2">
+                {[{ slug: null as string | null, label: "Semua" }, ...kotaList].map((o) => {
+                  const on = (o.slug ?? null) === kota;
+                  return (
+                    <button
+                      key={o.slug ?? "semua"}
+                      type="button"
+                      onClick={() => pilihKota(o.slug)}
+                      aria-pressed={on}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors ${
+                        on
+                          ? "border-[#0F766E] bg-[#ECFDF5] text-[#0F766E]"
+                          : "border-[#DAD3C2] text-[#1F2937] hover:border-[#B9B09A]"
+                      }`}
+                    >
+                      {on && <Check size={14} strokeWidth={2.5} aria-hidden="true" />}
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           {showCustomerLinks && (
             <>
@@ -467,17 +509,20 @@ export default function Navbar() {
                 <Link
                   href="/auth/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full rounded-2xl border-[1.5px] border-[#0F766E] px-5 py-3 text-center text-base font-semibold text-[#0F766E] transition-all duration-200 hover:border-[#F59E0B] hover:bg-[#FFFBEB] hover:text-[#B45309]"
+                  className="w-full rounded-2xl bg-[#0F766E] px-5 py-3 text-center text-base font-bold text-white transition-colors duration-200 hover:bg-[#0D9488]"
                 >
                   Masuk
                 </Link>
-                <Link
-                  href="/auth/register"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full rounded-2xl bg-[#0F766E] px-5 py-3 text-center text-base font-bold text-white shadow-[0_10px_26px_rgba(15,118,110,0.30)] transition-all duration-200 hover:bg-[#0D9488]"
-                >
-                  Daftar
-                </Link>
+                <p className="text-center text-sm text-[#6B7280]">
+                  Belum punya akun?{" "}
+                  <Link
+                    href="/auth/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="font-bold text-[#0F766E] underline-offset-2 hover:underline"
+                  >
+                    Daftar
+                  </Link>
+                </p>
               </>
             )}
           </div>
