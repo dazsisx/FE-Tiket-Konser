@@ -116,35 +116,35 @@
 .seg2Btn[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .seg2Btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
-.cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
-@media (min-width: 860px) { .cats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.85rem; } }
+.cats { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
-.cat {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.85rem 1rem 0.9rem;
+.catChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
   border: 1.5px solid rgba(31, 41, 55, 0.18);
-  border-radius: 0.9rem;
+  border-radius: 999px;
   background: #fff;
   color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
   text-decoration: none;
-  overflow: hidden;
-  isolation: isolate;
-  transition: border-color 0.45s var(--ease-out), transform 0.45s var(--ease-out);
+  transition: background 0.3s var(--ease-out), border-color 0.3s var(--ease-out), transform 0.3s var(--ease-out);
 }
-.cat::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--gold); transform: translateY(101%); transition: transform 0.55s var(--ease-out); }
-.cat:hover { border-color: var(--gold); transform: translateY(-3px); }
-.cat:hover::before { transform: translateY(0); }
-.cat:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
-.catTop { display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; color: #6b7280; transition: color 0.4s; }
-.cat:hover .catTop { color: var(--ink); }
-.catLabel { font-size: clamp(1.7rem, 3.6vw, 2.3rem); font-weight: 800; line-height: 0.95; }
-.catCount { font-size: 0.8rem; font-weight: 500; color: #6b7280; transition: color 0.4s; }
-.cat:hover .catCount { color: var(--ink); }
-.catGo { transition: transform 0.45s var(--ease-out); }
-.cat:hover .catGo { transform: translateX(4px); }
+.catChip:hover { background: var(--gold); border-color: var(--gold); transform: translateY(-2px); }
+.catChip:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.catChipCount {
+  min-width: 1.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.08);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  color: #4b5563;
+}
+.catChip:hover .catChipCount { background: rgba(31, 41, 55, 0.15); color: var(--ink); }
 
 .chip {
   display: inline-flex;
@@ -170,6 +170,61 @@
 
 .secTitle { font-size: clamp(1.9rem, 4.2vw, 2.7rem); font-weight: 900; line-height: 0.95; color: var(--ink); }
 .secBar { display: block; width: 2.75rem; height: 4px; margin-top: 0.55rem; border-radius: 4px; background: var(--gold); }
+
+/* ---------- gerak ikon ---------- */
+
+/* judul seksi */
+.motionMega svg { animation: megaWiggle 3.2s ease-in-out infinite; transform-origin: 40% 60%; }
+.motionThumb svg { animation: thumbBounce 3.4s ease-in-out infinite; transform-origin: 30% 80%; }
+.clockMin,
+.clockHour { transform-origin: 12px 12px; transform-box: view-box; }
+.clockMin { animation: spin 6s linear infinite; }
+.clockHour { animation: spin 72s linear infinite; }
+
+/* pin lokasi: naik-turun pelan (banner & chip lokasi), di kartu hanya saat di-hover */
+.pinBob { animation: pinBob 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+.card:hover .pinHover { animation: pinBob 0.9s ease-in-out infinite; transform-origin: 50% 100%; }
+
+/* panah tombol "Beli tiket": menyodok ke kanan */
+.arrowGo { animation: arrowNudge 1.8s ease-in-out infinite; }
+
+/* ikon kategori: bergoyang saat chip di-hover */
+.catChip:hover .catIcon { animation: iconWiggle 0.7s ease-in-out; }
+
+/* tanda silang di chip lokasi: berputar saat di-hover */
+.chipX { transition: transform 0.4s var(--ease-out); }
+.chip:hover .chipX { transform: rotate(90deg); }
+
+@keyframes megaWiggle {
+  0%, 58%, 100% { transform: rotate(0) scale(1); }
+  64% { transform: rotate(-14deg) scale(1.1); }
+  70% { transform: rotate(10deg) scale(1.1); }
+  76% { transform: rotate(-8deg) scale(1.05); }
+  82% { transform: rotate(0) scale(1); }
+}
+@keyframes thumbBounce {
+  0%, 60%, 100% { transform: translateY(0) rotate(0); }
+  70% { transform: translateY(-4px) rotate(-14deg); }
+  80% { transform: translateY(0) rotate(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pinBob {
+  0%, 60%, 100% { transform: translateY(0); }
+  72% { transform: translateY(-3px); }
+  84% { transform: translateY(0); }
+  92% { transform: translateY(-1px); }
+}
+@keyframes arrowNudge {
+  0%, 55%, 100% { transform: translateX(0); }
+  70% { transform: translateX(4px); }
+  85% { transform: translateX(0); }
+}
+@keyframes iconWiggle {
+  0%, 100% { transform: rotate(0) scale(1); }
+  25% { transform: rotate(-16deg) scale(1.15); }
+  55% { transform: rotate(12deg) scale(1.15); }
+  80% { transform: rotate(-6deg) scale(1.05); }
+}
 
 /* ---------- kartu poster ---------- */
 
@@ -239,5 +294,7 @@
   .ribbonTrack, .seg[data-state="active"] .segFill { animation: none; }
   .seg[data-state="active"] .segFill { transform: scaleX(1); }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .poster, .posterImg, .cat { transition: none; }
+  .poster, .posterImg, .catChip, .chipX { transition: none; }
+  .motionMega svg, .motionThumb svg, .clockMin, .clockHour,
+  .pinBob, .card:hover .pinHover, .arrowGo, .catChip:hover .catIcon { animation: none; }
 }

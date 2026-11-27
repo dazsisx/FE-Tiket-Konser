@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Big_Shoulders } from "next/font/google";
@@ -8,7 +8,6 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Guitar,
   MapPin,
   Megaphone,
@@ -39,6 +38,7 @@ import {
   type KategoriSlug,
 } from "@/utils/kategori";
 import { cocokKota, kotaLabelDariSlug, kotaOptions, toKotaParam } from "@/utils/kota";
+import PromoTiket from "./promo-tiket";
 import styles from "./hero-top-events.module.css";
 
 /**
@@ -66,6 +66,39 @@ const railCard =
   "w-[60%] shrink-0 snap-start sm:w-[calc((100%-32px)/3)] lg:w-[calc((100%-64px)/5)]";
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+// Section "Jelajahi kategori" hanya tampil kalau kategori yang berisi minimal segini
+const MIN_KATEGORI_TAMPIL = 3;
+
+type IconType = ComponentType<{ size?: number; strokeWidth?: number }>;
+type IconMotion = "mega" | "thumb" | "clock";
+
+const MOTION_CLASS: Record<IconMotion, string> = {
+  mega: styles.motionMega,
+  thumb: styles.motionThumb,
+  clock: "",
+};
+
+/** Ikon jam dengan jarum yang berputar (bentuknya sama dengan Clock dari lucide) */
+function ClockIcon({ size = 18, strokeWidth = 2 }: { size?: number; strokeWidth?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line className={styles.clockMin} x1="12" y1="12" x2="12" y2="6" />
+      <line className={styles.clockHour} x1="12" y1="12" x2="16" y2="14" />
+    </svg>
+  );
+}
 
 /* ---------- helper ---------- */
 
@@ -121,22 +154,37 @@ function Poster({ event }: { event: EventItem }) {
 function ArrowButtons({ onPrev, onNext, className = "" }: { onPrev: () => void; onNext: () => void; className?: string }) {
   const base =
     "flex h-9 w-9 items-center justify-center rounded-full border border-[#1F2937]/20 bg-white text-[#1F2937] transition-colors hover:border-[#1F2937] hover:bg-[#1F2937] hover:text-white";
+  const move = "transition-transform duration-300";
   return (
     <div className={`gap-2 ${className}`}>
-      <button type="button" onClick={onPrev} aria-label="Geser ke kiri" className={base}>
-        <ChevronLeft size={18} />
+      <button type="button" onClick={onPrev} aria-label="Geser ke kiri" className={`${base} group`}>
+        <ChevronLeft size={18} className={`${move} group-hover:-translate-x-0.5`} />
       </button>
-      <button type="button" onClick={onNext} aria-label="Geser ke kanan" className={base}>
-        <ChevronRight size={18} />
+      <button type="button" onClick={onNext} aria-label="Geser ke kanan" className={`${base} group`}>
+        <ChevronRight size={18} className={`${move} group-hover:translate-x-0.5`} />
       </button>
     </div>
   );
 }
 
-function SectionTitle({ icon: Icon, title, hint }: { icon: LucideIcon; title: string; hint?: string }) {
+function SectionTitle({
+  icon: Icon,
+  title,
+  hint,
+  motion,
+}: {
+  icon: IconType;
+  title: string;
+  hint?: string;
+  motion?: IconMotion;
+}) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1F2937] text-[#F59E0B]">
+      <span
+        className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1F2937] text-[#F59E0B] ${
+          motion ? MOTION_CLASS[motion] : ""
+        }`}
+      >
         <Icon size={18} strokeWidth={2} />
       </span>
       <div>
@@ -198,7 +246,7 @@ function Banner({ events }: { events: EventItem[] }) {
                     <span className={styles.dateMonth}>{bulan}</span>
                   </span>
                   <p className="flex items-center gap-1.5 text-sm font-medium text-white/90">
-                    <MapPin size={15} className="shrink-0 text-[#F59E0B]" />
+                    <MapPin size={15} className={`${styles.pinBob} shrink-0 text-[#F59E0B]`} />
                     <span className="line-clamp-1">{event.lokasi}</span>
                   </p>
                 </div>
@@ -215,7 +263,7 @@ function Banner({ events }: { events: EventItem[] }) {
                   {event.status === "ditutup"
                     ? "Tiket ditutup"
                     : `Beli tiket · mulai ${getHargaTermurah(event.kategori_tiket)}`}
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} className={styles.arrowGo} />
                 </span>
               </div>
             </div>
@@ -225,11 +273,11 @@ function Banner({ events }: { events: EventItem[] }) {
 
       {total > 1 && (
         <>
-          <button type="button" onClick={() => go(active - 1)} aria-label="Banner sebelumnya" className={`${arrow} left-4`}>
-            <ChevronLeft size={20} />
+          <button type="button" onClick={() => go(active - 1)} aria-label="Banner sebelumnya" className={`${arrow} group left-4`}>
+            <ChevronLeft size={20} className="transition-transform duration-300 group-hover:-translate-x-0.5" />
           </button>
-          <button type="button" onClick={() => go(active + 1)} aria-label="Banner berikutnya" className={`${arrow} right-4`}>
-            <ChevronRight size={20} />
+          <button type="button" onClick={() => go(active + 1)} aria-label="Banner berikutnya" className={`${arrow} group right-4`}>
+            <ChevronRight size={20} className="transition-transform duration-300 group-hover:translate-x-0.5" />
           </button>
 
           <div className="absolute inset-x-0 bottom-3 z-20">
@@ -281,7 +329,7 @@ function EventCard({ event, rank, className = "" }: { event: EventItem; rank?: n
       </div>
       <p className={`${styles.cardTitle} line-clamp-2`}>{event.nama_event}</p>
       <p className="mt-1 flex items-center gap-1 text-xs text-[#6B7280]">
-        <MapPin size={12} className="shrink-0" />
+        <MapPin size={12} className={`${styles.pinHover} shrink-0`} />
         <span className="line-clamp-1">{event.lokasi}</span>
       </p>
       <p className={`${styles.display} ${styles.cardPrice}`}>
@@ -296,12 +344,14 @@ function EventCard({ event, rank, className = "" }: { event: EventItem; rank?: n
 
 function Rail({
   icon,
+  motion,
   title,
   hint,
   href = "/kategori/semua",
   children,
 }: {
-  icon: LucideIcon;
+  icon: IconType;
+  motion?: IconMotion;
   title: string;
   hint?: string;
   /** tujuan "Lihat semua" */
@@ -318,7 +368,7 @@ function Rail({
     <section className="mt-16">
       <Reveal>
         <div className="flex items-start justify-between gap-4">
-          <SectionTitle icon={icon} title={title} hint={hint} />
+          <SectionTitle icon={icon} motion={motion} title={title} hint={hint} />
           <div className="flex items-center gap-4 pt-1">
             <Link href={href} className="text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
               Lihat semua
@@ -389,14 +439,18 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
     if (cocokKota(e, kota) && (e.status === "aktif" || e.status === "ditutup")) jumlah[kategoriOf(e)] += 1;
   });
 
+  const kategoriAda = KATEGORI.filter(({ slug }) => jumlah[slug] > 0);
+  const tampilKategori = kategoriAda.length >= MIN_KATEGORI_TAMPIL;
+
   const banners = events.slice(0, 6);
   // Hanya acara yang juga tampil di /kategori/semua, supaya "Lihat semua" tidak menjanjikan isi yang berbeda
   const filtered = events.filter((e) => cocokKota(e, kota)).filter(tampilPublik);
   // Teratas = tiket terlaris; kalau belum ada penjualan, otomatis jatuh ke acara yang paling dekat tanggalnya
   const topEvents = [...filtered].sort(bandingTerlaris).slice(0, 8);
   const topAdaPenjualan = topEvents.some((e) => totalTerjual(e) > 0);
-  // Terbaru = terakhir ditambahkan (bukan tanggal acara), sama dengan urutan "Terbaru" di /kategori/semua
-  const newestEvents = [...filtered].sort(bandingTerbaru).slice(0, 10);
+  // Terbaru = terakhir ditambahkan (bukan tanggal acara), sama dengan urutan "Terbaru" di /kategori/semua.
+  // 8 acara = 2 baris penuh di grid 4 kolom (kolom kelima di desktop dipakai promo).
+  const newestEvents = [...filtered].sort(bandingTerbaru).slice(0, 8);
   // Rekomendasi: dari event yang disimpan/dibeli pengguna (kategori & artis yang sama).
   // Kalau belum ada sinyal, isi dengan acara lain yang belum tampil di rail Teratas.
   const topIds = new Set(topEvents.map((e) => e.id));
@@ -434,45 +488,49 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* ===== Kategori ===== */}
-          <Reveal className="mt-10">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className={`${styles.display} text-2xl font-extrabold tracking-wide text-[#1F2937] uppercase`}>Jelajahi kategori</h2>
-              {kotaLabel ? (
-                <button
-                  type="button"
-                  onClick={hapusKota}
-                  aria-label={`Hapus filter lokasi ${kotaLabel}`}
-                  className={styles.chip}
-                  aria-pressed="true"
-                >
-                  <MapPin size={15} className="shrink-0" aria-hidden="true" />
-                  <span className="truncate">{kotaLabel}</span>
-                  <X size={14} aria-hidden="true" />
-                </button>
-              ) : (
-                <p className="text-sm text-[#6B7280]">Pilih jenis acara, atau saring lewat Lokasi di atas</p>
-              )}
-            </div>
+          {(tampilKategori || kotaLabel) && (
+            <Reveal className="mt-10">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {tampilKategori ? (
+                  <h2 className={`${styles.display} text-2xl font-extrabold tracking-wide text-[#1F2937] uppercase`}>
+                    Jelajahi kategori
+                  </h2>
+                ) : (
+                  <span />
+                )}
+                {kotaLabel ? (
+                  <button
+                    type="button"
+                    onClick={hapusKota}
+                    aria-label={`Hapus filter lokasi ${kotaLabel}`}
+                    className={styles.chip}
+                    aria-pressed="true"
+                  >
+                    <MapPin size={15} className={`${styles.pinBob} shrink-0`} aria-hidden="true" />
+                    <span className="truncate">{kotaLabel}</span>
+                    <X size={14} className={styles.chipX} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <p className="text-sm text-[#6B7280]">Pilih jenis acara, atau saring lewat Lokasi di atas</p>
+                )}
+              </div>
 
-            <div className={`${styles.cats} mt-5`}>
-              {KATEGORI.map(({ label, slug }, i) => {
-                const Icon = ICONS[slug];
-                return (
-                  <Link key={slug} href={withKota(`/kategori/${slug}`)} className={styles.cat}>
-                    <span className={styles.catTop}>
-                      <span>{pad(i + 1)}</span>
-                      <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-                    </span>
-                    <span className={`${styles.display} ${styles.catLabel}`}>{label}</span>
-                    <span className={`${styles.catCount} flex items-center justify-between`}>
-                      {jumlah[slug]} acara
-                      <ArrowRight size={16} className={styles.catGo} aria-hidden="true" />
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </Reveal>
+              {tampilKategori && (
+                <div className={`${styles.cats} mt-4`}>
+                  {kategoriAda.map(({ label, slug }) => {
+                    const Icon = ICONS[slug];
+                    return (
+                      <Link key={slug} href={withKota(`/kategori/${slug}`)} className={styles.catChip}>
+                        <Icon size={16} strokeWidth={1.8} className={styles.catIcon} aria-hidden="true" />
+                        <span>{label}</span>
+                        <span className={styles.catChipCount}>{jumlah[slug]}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </Reveal>
+          )}
 
           {filtered.length === 0 && events.length > 0 && (
             <p className="mt-10 text-sm text-[#6B7280]">
@@ -489,6 +547,7 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
           {topEvents.length > 0 && (
             <Rail
               icon={Megaphone}
+              motion="mega"
               title="Event Teratas"
               hint={topAdaPenjualan ? "Tiket paling laris saat ini" : "Acara yang akan segera hadir"}
               href={withKota("/kategori/semua?urut=terlaris")}
@@ -499,23 +558,33 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
             </Rail>
           )}
 
-          {/* ===== Event Terbaru (grid) ===== */}
+          {/* ===== Event Terbaru (grid) + promo di samping ===== */}
           {newestEvents.length > 0 && (
             <section className="mt-16">
               <Reveal>
                 <div className="flex items-start justify-between gap-4">
-                  <SectionTitle icon={Clock} title="Event Terbaru" />
+                  <SectionTitle icon={ClockIcon} motion="clock" title="Event Terbaru" />
                   <Link href={withKota("/kategori/semua?urut=terbaru")} className="pt-1 text-sm font-semibold text-[#0F766E] underline-offset-4 hover:underline">
                     Lihat semua
                   </Link>
                 </div>
               </Reveal>
-              <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 lg:grid-cols-5">
-                {newestEvents.map((event, i) => (
-                  <Reveal key={event.id} index={i % 5}>
-                    <EventCard event={event} />
-                  </Reveal>
-                ))}
+
+              {/* desktop: grid 4 kolom + kolom promo; tablet/HP: promo turun ke bawah grid */}
+              <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-4">
+                  {newestEvents.map((event, i) => (
+                    <Reveal key={event.id} index={i % 4}>
+                      <EventCard event={event} />
+                    </Reveal>
+                  ))}
+                </div>
+
+                                <Reveal index={2}>
+                  <div className="lg:sticky lg:top-28">
+                    <PromoTiket events={filtered} href={withKota("/kategori/semua")} />
+                  </div>
+                </Reveal>
               </div>
             </section>
           )}
@@ -524,6 +593,7 @@ export default function HeroAndTopEvents({ events }: { events: EventItem[] }) {
           {recommendedEvents.length > 0 && (
             <Rail
               icon={ThumbsUp}
+              motion="thumb"
               title={personalisasi ? "Rekomendasi Untukmu" : "Jelajahi Acara Lainnya"}
               hint={personalisasi ? "Berdasarkan event yang kamu simpan dan beli" : undefined}
               href={withKota(personalisasi && personal.kategoriUtama ? `/kategori/${personal.kategoriUtama}` : "/kategori/semua")}

@@ -1,146 +1,133 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { AlertTriangle, ArrowRight, CalendarDays, MapPin, RefreshCw, Search, Ticket, UserRound, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, MapPin, Mic2, RefreshCw, Search, Ticket, X } from "lucide-react";
+import FlyerHero from "@/components/flyer/FlyerHero";
+import styles from "@/components/flyer/flyer.module.css";
 import { fetchOrderHistory, formatJam, formatRupiah, formatTanggal, getImageUrl, type PesananRiwayat } from "@/utils/api";
-import { STATUS_ORDER, statusLabel, statusOf, waktuPesanan, type StatusKey } from "@/utils/pesanan";
+import { formatHariTanggal, potongTanggal } from "@/utils/kategori";
+import { STATUS_ORDER, statusOf, waktuPesanan, type StatusKey } from "@/utils/pesanan";
 import DetailTransaksi from "./detail-transaksi";
+import { TONE } from "./tone";
 
 type Filter = "semua" | StatusKey;
 
-const primaryBtn =
-  "inline-flex h-[52px] items-center justify-center gap-2 rounded-full bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]";
+const pad = (n: number) => String(n).padStart(2, "0");
 
-function SkeletonList() {
+/** Label pendek untuk tab (nama panjang tetap dipakai di lencana status). */
+const TAB_LABEL: Record<Filter, string> = {
+  semua: "Semua",
+  "menunggu-pembayaran": "Belum bayar",
+  "menunggu-verifikasi": "Diperiksa",
+  berhasil: "Berhasil",
+  ditolak: "Ditolak",
+  kedaluwarsa: "Kedaluwarsa",
+};
+
+function Skeleton() {
   return (
-    <ul className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat histori pembelian">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li key={i} className="flex gap-4 rounded-3xl border border-[#E5E7EB] bg-white p-4 sm:gap-5 sm:p-5">
-          <div className="h-28 w-24 shrink-0 animate-pulse rounded-2xl bg-[#F3F4F6] sm:h-36 sm:w-32" />
-          <div className="flex-1 space-y-3 py-1">
-            <div className="h-5 w-24 animate-pulse rounded-full bg-[#F3F4F6]" />
-            <div className="h-5 w-3/4 animate-pulse rounded-full bg-[#E5E7EB]" />
-            <div className="h-3.5 w-1/2 animate-pulse rounded-full bg-[#F3F4F6]" />
-            <div className="h-3.5 w-2/3 animate-pulse rounded-full bg-[#F3F4F6]" />
-          </div>
-        </li>
+    <div className={styles.list} aria-busy="true" aria-label="Memuat histori pembelian">
+      {[0, 1, 2].map((n) => (
+        <div key={n} className={styles.skeleton} />
       ))}
-    </ul>
+    </div>
   );
 }
 
-function OrderCard({ order, onDetail }: { order: PesananRiwayat; onDetail: (o: PesananRiwayat) => void }) {
+function OrderTicket({ order, index, onDetail }: { order: PesananRiwayat; index: number; onDetail: (o: PesananRiwayat) => void }) {
   const status = statusOf(order);
   const event = order.event;
   const poster = getImageUrl(event?.image_url);
   const dibuat = waktuPesanan(order);
+  const date = event ? potongTanggal(event.tanggal) : null;
   const bisaPesanUlang = (status.key === "ditolak" || status.key === "kedaluwarsa") && event?.status === "aktif";
 
   return (
-    <li className="flex flex-col gap-4 rounded-3xl border border-[#E5E7EB] bg-white p-4 transition-all duration-300 hover:border-[#0F766E]/40 hover:shadow-[0_18px_44px_rgba(15,118,110,0.12)] sm:flex-row sm:gap-5 sm:p-5">
-      <div className="flex gap-4 sm:contents">
-        <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-2xl bg-[#1F2937] sm:h-auto sm:w-36">
-          {poster ? (
-            <Image src={poster} alt="" fill unoptimized sizes="144px" className="object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center px-2 text-center text-xs font-bold text-white/80">
-              {event?.nama_event ?? "Event"}
-            </div>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1 sm:hidden">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${status.badge}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
-            {status.label}
-          </span>
-          <h2 className="mt-2 line-clamp-2 text-base font-extrabold leading-snug text-[#1F2937]">
-            {event?.nama_event ?? "Event tidak tersedia"}
-          </h2>
-          <p className="mt-1 text-xs text-[#9CA3AF]">{order.kode_tiket}</p>
-        </div>
+    <article className={`${styles.ticket} ${styles.ticketCompact}`} style={{ "--i": index } as CSSProperties}>
+      <div className={styles.poster}>
+        {poster ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className={styles.posterImg} src={poster} alt="" loading="lazy" />
+        ) : (
+          <div className={`${styles.display} ${styles.posterEmpty}`} aria-hidden="true">
+            {event?.nama_event ?? "Event"}
+          </div>
+        )}
+        {date && (
+          <div className={styles.dateChip} aria-hidden="true">
+            <span className={`${styles.display} ${styles.dateDay}`}>{date.hari}</span>
+            <span className={styles.dateMonth}>{date.bulan}</span>
+          </div>
+        )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="hidden items-start justify-between gap-3 sm:flex">
-          <div className="min-w-0">
-            <h2 className="line-clamp-2 text-xl font-extrabold leading-snug text-[#1F2937]">
-              {event?.nama_event ?? "Event tidak tersedia"}
-            </h2>
-            <p className="mt-0.5 text-xs font-semibold tracking-wide text-[#9CA3AF]">{order.kode_tiket}</p>
-          </div>
-          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ${status.badge}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
+      <div className={styles.main}>
+        <div className={styles.statusRow}>
+          <span className={styles.status} data-tone={TONE[status.key]}>
             {status.label}
           </span>
+          {order.kode_tiket && <span className={styles.code}>{order.kode_tiket}</span>}
         </div>
-
+        <h2 className={`${styles.display} ${styles.evTitle}`} style={{ marginTop: "0.8rem" }}>
+          {event?.nama_event ?? "Event tidak tersedia"}
+        </h2>
         {event && (
-          <ul className="mt-1 flex flex-col gap-1.5 text-sm text-[#6B7280] sm:mt-3">
+          <ul className={styles.meta}>
             {event.artis?.nama && (
-              <li className="flex items-center gap-2">
-                <UserRound size={15} className="shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-                <span className="truncate font-medium text-[#1F2937]">{event.artis.nama}</span>
+              <li className={styles.metaRow}>
+                <Mic2 size={15} aria-hidden="true" />
+                <span>{event.artis.nama}</span>
               </li>
             )}
-            <li className="flex items-center gap-2">
-              <CalendarDays size={15} className="shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-              {formatTanggal(event.tanggal)}
-            </li>
-            <li className="flex items-start gap-2">
-              <MapPin size={15} className="mt-0.5 shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-              <span className="line-clamp-1">{event.lokasi}</span>
+            <li className={styles.metaRow}>
+              <MapPin size={15} aria-hidden="true" />
+              <span>
+                {formatHariTanggal(event.tanggal)} · {event.lokasi}
+              </span>
             </li>
           </ul>
         )}
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#6B7280]">
-          <span className="flex items-center gap-1.5">
-            <Ticket size={14} className="text-[#9CA3AF]" aria-hidden="true" />
+        <div className={styles.foot}>
+          <span className={styles.tag}>
             {order.kategori_tiket?.nama_kelas ?? "Tiket"} × {order.jumlah}
           </span>
           {dibuat && (
-            <span>
+            <span className={styles.tag}>
               Dipesan {formatTanggal(dibuat)}, {formatJam(dibuat)}
             </span>
           )}
         </div>
+      </div>
 
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-[#E5E7EB] pt-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#9CA3AF]">Total pembayaran</p>
-            <p className="text-lg font-extrabold text-[#F59E0B]">{formatRupiah(order.total_harga)}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onDetail(order)}
-              className="h-11 rounded-full border-[1.5px] border-[#E5E7EB] px-5 text-sm font-semibold text-[#1F2937] transition-all duration-200 hover:border-[#0F766E] hover:text-[#0F766E]"
-            >
-              {status.key === "berhasil" ? "Detail & Tiket" : "Detail Transaksi"}
+      <div className={styles.stub}>
+        <div className={styles.stubHead}>
+          <span className={styles.stubTitle}>Total pembayaran</span>
+          <span className={styles.stubCount}>{order.jumlah} tiket</span>
+        </div>
+        <div className={`${styles.display} ${styles.fromPrice}`} style={{ marginTop: "0.6rem" }}>
+          {formatRupiah(order.total_harga)}
+        </div>
+
+        <div className={styles.buy}>
+          <div className={styles.actions}>
+            <button type="button" className={`${styles.cta} ${styles.ctaGhost}`} onClick={() => onDetail(order)}>
+              {status.key === "berhasil" ? "Detail & tiket" : "Detail"}
             </button>
             {status.key === "menunggu-pembayaran" && (
-              <Link
-                href={`/pembelian/sukses?order=${order.id}`}
-                className="flex h-11 items-center rounded-full bg-[#0F766E] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,118,110,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]"
-              >
-                Lanjutkan Pembayaran
+              <Link href={`/pembelian/sukses?order=${order.id}`} className={styles.cta}>
+                Bayar <ArrowRight size={16} aria-hidden="true" />
               </Link>
             )}
             {bisaPesanUlang && (
-              <Link
-                href={`/pembelian/tiket/${order.event_id}`}
-                className="flex h-11 items-center rounded-full bg-[#0F766E] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(15,118,110,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]"
-              >
-                Pesan Ulang
+              <Link href={`/pembelian/tiket/${order.event_id}`} className={styles.cta}>
+                Pesan ulang <ArrowRight size={16} aria-hidden="true" />
               </Link>
             )}
           </div>
         </div>
       </div>
-    </li>
+    </article>
   );
 }
 
@@ -152,7 +139,6 @@ export default function RiwayatSaya() {
   const [filter, setFilter] = useState<Filter>("semua");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PesananRiwayat | null>(null);
-
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -189,6 +175,17 @@ export default function RiwayatSaya() {
     return c;
   }, [orders]);
 
+  const { tiketBerhasil, totalBelanja } = useMemo(() => {
+    let tiket = 0;
+    let belanja = 0;
+    for (const o of orders) {
+      if (statusOf(o).key !== "berhasil") continue;
+      tiket += o.jumlah;
+      belanja += parseFloat(o.total_harga) || 0;
+    }
+    return { tiketBerhasil: tiket, totalBelanja: belanja };
+  }, [orders]);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return orders.filter((o) => {
@@ -201,136 +198,127 @@ export default function RiwayatSaya() {
   }, [orders, filter, query]);
 
   const closeDetail = useCallback(() => setSelected(null), []);
+  const ready = !loading && !error;
+  const filterAktif = filter !== "semua" || query.trim() !== "";
 
-  if (loading) return <SkeletonList />;
-
-  if (error) {
-    return (
-      <div role="alert" className="flex flex-col items-center rounded-[32px] border border-red-200 bg-red-50 px-6 py-14 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
-          <AlertTriangle size={26} aria-hidden="true" />
-        </span>
-        <h2 className="mt-4 text-xl font-extrabold text-[#1F2937]">Histori pembelian gagal dimuat</h2>
-        <p className="mt-2 max-w-md text-sm text-[#6B7280]">{error}</p>
-        <button
-          type="button"
-          onClick={retry}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-[#0F766E] px-6 text-sm font-bold text-white transition-colors hover:bg-[#0D9488]"
-        >
-          <RefreshCw size={16} aria-hidden="true" />
-          Coba Lagi
-        </button>
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="grid items-center gap-8 rounded-[32px] border border-[#E5E7EB] bg-white p-8 shadow-[0_20px_60px_rgba(31,41,55,0.08)] sm:p-12 lg:grid-cols-[320px_1fr] lg:gap-12">
-        <div className="relative mx-auto aspect-square w-full max-w-[280px] lg:max-w-none">
-          <Image src="/netralbaru.png" alt="" fill sizes="(max-width: 1024px) 70vw, 320px" className="object-contain" />
-        </div>
-        <div className="text-center lg:text-left">
-          <h2 className="text-3xl font-extrabold text-[#1F2937] sm:text-4xl">Belum Ada Pembelian</h2>
-          <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-[#6B7280] lg:mx-0">
-            Kamu belum pernah memesan tiket. Temukan konser favoritmu, dan setiap transaksi akan tercatat di sini.
-          </p>
-          <div className="mt-7 flex justify-center lg:justify-start">
-            <Link href="/kategori/konser" className={primaryBtn}>
-              Cari Konser
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const chips: Array<{ key: Filter; label: string }> = [
-    { key: "semua", label: "Semua" },
-    ...STATUS_ORDER.filter((k) => counts[k]).map((k) => ({ key: k as Filter, label: statusLabel(k) })),
-  ];
+  const tabs: Filter[] = ["semua", ...STATUS_ORDER.filter((k) => counts[k])];
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        <div className="relative">
-          <Search size={18} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#9CA3AF]" aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari nama event, artis, atau kode booking"
-            aria-label="Cari transaksi"
-            className="h-[52px] w-full rounded-full border border-[#E5E7EB] bg-white pr-11 pl-11 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none [&::-webkit-search-cancel-button]:hidden"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Hapus pencarian"
-              className="absolute top-1/2 right-3 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#9CA3AF] transition-colors hover:bg-[#F3F4F6] hover:text-[#1F2937]"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
+      <FlyerHero
+        kicker="Riwayat transaksi"
+        title="Pembelian"
+        stampLabel="Pembelian"
+        stampValue={ready ? pad(orders.length) : "…"}
+        tagline={ready && orders.length > 0 ? "Semua tiket yang pernah kamu pesan, di satu tempat." : "Setiap transaksi akan tercatat di sini."}
+        blurb="Pantau status pembayaran, lanjutkan yang belum dibayar, dan buka QR tiket yang sudah lunas."
+        statsLabel="Ringkasan pembelian"
+        stats={[
+          { value: ready ? orders.length : "—", label: "Transaksi" },
+          { value: ready ? tiketBerhasil : "—", label: "Tiket berhasil" },
+          { value: ready ? formatRupiah(totalBelanja) : "—", label: "Total belanja" },
+        ]}
+      />
 
-        <div role="group" aria-label="Filter status transaksi" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-          {chips.map(({ key, label }) => {
-            const active = filter === key;
-            return (
+      {loading ? (
+        <Skeleton />
+      ) : error ? (
+        <div className={styles.empty} role="alert">
+          <AlertTriangle className={styles.emptyIcon} size={40} strokeWidth={1.5} aria-hidden="true" />
+          <p className={`${styles.display} ${styles.emptyTitle}`}>Histori gagal dimuat</p>
+          <p className={styles.emptyText}>{error}</p>
+          <div className={styles.emptyActions}>
+            <button type="button" className={styles.btn} onClick={retry}>
+              <RefreshCw size={16} aria-hidden="true" />
+              Coba lagi
+            </button>
+          </div>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className={styles.empty}>
+          <Ticket className={styles.emptyIcon} size={40} strokeWidth={1.5} aria-hidden="true" />
+          <p className={`${styles.display} ${styles.emptyTitle}`}>Belum ada pembelian</p>
+          <p className={styles.emptyText}>Kamu belum pernah memesan tiket. Temukan konser favoritmu, dan setiap transaksi akan tercatat di sini.</p>
+          <div className={styles.emptyActions}>
+            <Link href="/kategori/konser" className={styles.btn}>
+              Cari konser <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={styles.switcher} role="group" aria-label="Filter status transaksi">
+            {tabs.map((key, i) => (
               <button
                 key={key}
                 type="button"
+                className={`${styles.tab} ${key === "semua" ? styles.tabAll : ""}`}
+                aria-pressed={filter === key}
                 onClick={() => setFilter(key)}
-                aria-pressed={active}
-                className={`flex shrink-0 items-center gap-2 rounded-full border-[1.5px] px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                  active
-                    ? "border-[#0F766E] bg-[#0F766E] text-white shadow-[0_6px_16px_rgba(15,118,110,0.25)]"
-                    : "border-[#E5E7EB] bg-white text-[#1F2937] hover:border-[#F59E0B] hover:bg-[#FFFBEB]"
-                }`}
               >
-                {label}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-bold ${active ? "bg-white/20 text-white" : "bg-[#F3F4F6] text-[#6B7280]"}`}
-                >
-                  {counts[key] ?? 0}
+                <span className={styles.tabTop}>
+                  <span>{pad(i)}</span>
                 </span>
+                <span className={`${styles.display} ${styles.tabLabel}`}>{TAB_LABEL[key]}</span>
+                <span className={styles.tabCount}>{counts[key] ?? 0} transaksi</span>
               </button>
-            );
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
 
-      <p className="mt-5 text-sm text-[#6B7280]" aria-live="polite">
-        Menampilkan {visible.length} dari {orders.length} transaksi
-      </p>
+          <div className={styles.search}>
+            <Search size={18} className={styles.searchIcon} aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari nama event, artis, atau kode booking"
+              aria-label="Cari transaksi"
+              className={styles.searchInput}
+            />
+            {query && (
+              <button type="button" className={styles.searchClear} onClick={() => setQuery("")} aria-label="Hapus pencarian">
+                <X size={16} />
+              </button>
+            )}
+          </div>
 
-      {visible.length === 0 ? (
-        <div className="mt-4 flex flex-col items-center rounded-[28px] border-2 border-dashed border-[#E5E7EB] px-6 py-14 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFFBEB] text-[#F59E0B]">
-            <Search size={24} aria-hidden="true" />
-          </span>
-          <h2 className="mt-4 text-lg font-extrabold text-[#1F2937]">Tidak ada transaksi yang cocok</h2>
-          <p className="mt-1.5 max-w-sm text-sm text-[#6B7280]">Coba kata kunci lain atau ubah filter status.</p>
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setFilter("semua");
-            }}
-            className="mt-5 h-11 rounded-full border-[1.5px] border-[#0F766E] px-6 text-sm font-bold text-[#0F766E] transition-colors hover:bg-[#ECFDF5]"
-          >
-            Reset Pencarian
-          </button>
-        </div>
-      ) : (
-        <ul className="mt-4 flex flex-col gap-4">
-          {visible.map((o) => (
-            <OrderCard key={o.id} order={o} onDetail={setSelected} />
-          ))}
-        </ul>
+          <div className={styles.toolbar}>
+            <div>
+              <h2 className={`${styles.display} ${styles.toolbarTitle}`}>{filter === "semua" ? "Semua transaksi" : `Transaksi ${TAB_LABEL[filter].toLowerCase()}`}</h2>
+              <p className={styles.toolbarSub} role="status" aria-live="polite">
+                Menampilkan {visible.length} dari {orders.length} transaksi
+              </p>
+            </div>
+            {filterAktif && (
+              <button
+                type="button"
+                className={styles.chip}
+                onClick={() => {
+                  setQuery("");
+                  setFilter("semua");
+                }}
+              >
+                Reset filter <span aria-hidden="true">×</span>
+              </button>
+            )}
+          </div>
+
+          {visible.length === 0 ? (
+            <div className={styles.empty}>
+              <Search className={styles.emptyIcon} size={40} strokeWidth={1.5} aria-hidden="true" />
+              <p className={`${styles.display} ${styles.emptyTitle}`}>Tidak ada yang cocok</p>
+              <p className={styles.emptyText}>Coba kata kunci lain atau ubah filter status.</p>
+            </div>
+          ) : (
+            <ul className={styles.list}>
+              {visible.map((o, i) => (
+                <li key={o.id} className={styles.rise} style={{ "--i": Math.min(i, 6) } as CSSProperties}>
+                  <OrderTicket order={o} index={Math.min(i, 6)} onDetail={setSelected} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {selected && <DetailTransaksi order={selected} onClose={closeDetail} />}

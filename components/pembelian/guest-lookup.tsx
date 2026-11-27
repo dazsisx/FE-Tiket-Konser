@@ -1,89 +1,94 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Mail, Phone, ShieldCheck, Ticket, Loader2, Search, RotateCcw } from "lucide-react";
+import { Mail, ShieldCheck, KeyRound, Loader2, Search, RotateCcw, Send } from "lucide-react";
+import styles from "@/components/flyer/flyer.module.css";
 import HasilPembelian from "./HasilPembelian";
-import { cekPembelian, type HasilCekPembelian } from "@/utils/cekPembelian";
+import {
+  kirimOtpCekPembelian,
+  verifikasiOtpCekPembelian,
+  type HasilCekPembelian,
+} from "@/utils/cekPembelian";
 
-type Metode = "email" | "telepon";
+type Langkah = "email" | "otp";
 
+const OTP_LENGTH = 6;
+const RESEND_COOLDOWN = 60; // detik
 // Aturan yang sama dengan backend (utils/cekPembelian.js) supaya salah ketik ketahuan sebelum request.
-const KODE_REGEX = /^TKT-[0-9A-F]{8}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function normalisasiTelepon(value: string): string {
-  let digits = value.replace(/\D/g, "");
-  if (digits.startsWith("62")) digits = digits.slice(2);
-  digits = digits.replace(/^0+/, "");
-  return digits ? `0${digits}` : "";
-}
-
-const inputClass =
-  "h-[56px] w-full rounded-2xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-sm text-[#1F2937] placeholder:text-[#9CA3AF] transition-all duration-200 focus:border-[#0F766E] focus:shadow-[0_0_0_4px_rgba(15,118,110,0.12)] focus:outline-none";
+const LANGKAH = [
+  { judul: "Masukkan email pembelian", teks: "Pakai email yang sama dengan saat kamu memesan tiket." },
+  { judul: "Masukkan kode OTP", teks: "Kami kirim 6 digit kode ke emailmu. Berlaku 10 menit." },
+  { judul: "Lihat status dan tiketmu", teks: "Kalau sudah lunas, QR tiket langsung muncul dan bisa diunduh." },
+];
 
 /**
- * Cek pesanan tanpa login. Verifikasi dilakukan backend (POST /api/pesanan/cek):
- * email / nomor HP saja tidak cukup, harus cocok dengan kode booking pesanannya,
- * dan permintaan gagal dibatasi rate limiter. Frontend hanya mengirim dan menampilkan hasilnya.
+ * Cek pesanan tanpa login. Verifikasi dilakukan backend lewat OTP email:
+ *   POST /api/pesanan/cek/kirim-otp  -> kirim kode ke email pembeli
+ *   POST /api/pesanan/cek/verifikasi -> cek kode, balikan daftar pesanan
+ * Frontend hanya mengirim dan menampilkan hasilnya.
  */
 export default function GuestLookup() {
-  const [metode, setMetode] = useState<Metode>("email");
-  const [kontak, setKontak] = useState("");
-  const [kode, setKode] = useState("");
+  const [langkah, setLangkah] = useState<Langkah>("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [hasil, setHasil] = useState<HasilCekPembelian | null>(null);
+  const [info, setInfo] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+  const [hasil, setHasil] = useState<HasilCekPembelian[] | null>(null);
 
-  const pilihMetode = (m: Metode) => {
-    if (m === metode) return;
-    setMetode(m);
-    setKontak("");
-    setError("");
-    setHasil(null);
-  };
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const reset = () => {
-    setKontak("");
-    setKode("");
+    setLangkah("email");
+    setEmail("");
+    setOtp("");
     setError("");
+    setInfo("");
+    setCooldown(0);
     setHasil(null);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const gantiEmail = () => {
+    setLangkah("email");
+    setOtp("");
     setError("");
-    setHasil(null);
+    setInfo("");
+  };
 
-    const kodeBersih = kode.trim().toUpperCase();
-    const kontakBersih = kontak.trim();
+  /** Validasi email di sisi klien. Mengembalikan email bersih, atau null (error sudah di-set). */
+  const bacaEmail = (): string | null => {
+    const bersih = email.trim();
+    if (!EMAIL_REGEX.test(bersih) || bersih.length > 150) {
+      setError("Format email tidak valid.");
+      return null;
+    }
+    return bersih;
+  };
 
-    if (metode === "email") {
-      if (!EMAIL_REGEX.test(kontakBersih) || kontakBersih.length > 150) {
-        setError("Format email tidak valid.");
-        return;
-      }
-    } else {
-      const tel = normalisasiTelepon(kontakBersih);
-      if (tel.length < 9 || tel.length > 15) {
-        setError("Format nomor HP tidak valid. Contoh: 081234567890.");
-        return;
-      }
-    }
-    if (!KODE_REGEX.test(kodeBersih)) {
-      setError("Format kode booking tidak valid. Contoh: TKT-1A2B3C4D.");
-      return;
-    }
+  const kirimOtp = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (loading || cooldown > 0) return;
+    setError("");
+    setInfo("");
+
+    const bersih = bacaEmail();
+    if (!bersih) return;
 
     setLoading(true);
     try {
-      setHasil(
-        await cekPembelian(
-          metode === "email"
-            ? { kode_tiket: kodeBersih, email: kontakBersih }
-            : { kode_tiket: kodeBersih, no_telepon: kontakBersih }
-        )
-      );
+      await kirimOtpCekPembelian({ email: bersih });
+      setLangkah("otp");
+      setOtp("");
+      setCooldown(RESEND_COOLDOWN);
+      setInfo("Jika ada pesanan dengan email ini, kode OTP sudah kami kirim. Cek kotak masuk atau folder spam.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi.");
     } finally {
@@ -91,136 +96,183 @@ export default function GuestLookup() {
     }
   };
 
-  const Icon = metode === "email" ? Mail : Phone;
+  const verifikasi = async (e: FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    setError("");
+
+    if (otp.length !== OTP_LENGTH) {
+      setError(`Masukkan ${OTP_LENGTH} digit kode OTP.`);
+      return;
+    }
+    const bersih = bacaEmail();
+    if (!bersih) return;
+
+    setLoading(true);
+    try {
+      setHasil(await verifikasiOtpCekPembelian({ email: bersih }, otp));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="mx-auto w-full max-w-[640px]">
-      <div className="rounded-[32px] border border-[#E5E7EB] bg-white p-7 shadow-[0_20px_60px_rgba(31,41,55,0.10)] sm:p-10">
-        <h2 className="text-2xl font-extrabold text-[#1F2937] sm:text-[28px]">Cek Pesanan Tanpa Login</h2>
-        <p className="mt-3 text-sm leading-relaxed text-[#6B7280] sm:text-[15px]">
-          Pilih email atau nomor HP yang kamu pakai saat membeli, lalu masukkan kode booking pesanan untuk melihat status dan tiketmu.
-        </p>
-
-        {/* Pilihan metode */}
-        <div role="group" aria-label="Metode pencarian" className="mt-6 grid grid-cols-2 gap-1.5 rounded-full bg-[#F3F4F6] p-1.5">
-          {(
-            [
-              ["email", "Email", Mail],
-              ["telepon", "Nomor HP", Phone],
-            ] as const
-          ).map(([key, label, MIcon]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => pilihMetode(key)}
-              aria-pressed={metode === key}
-              className={`flex h-11 items-center justify-center gap-2 rounded-full text-sm font-bold transition-all duration-200 ${
-                metode === key
-                  ? "bg-white text-[#0F766E] shadow-[0_4px_14px_rgba(15,118,110,0.18)] ring-1 ring-[#F59E0B]/40"
-                  : "text-[#6B7280] hover:text-[#1F2937]"
-              }`}
-            >
-              <MIcon size={16} aria-hidden="true" />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-2">
-          <label htmlFor="kontak" className="text-sm font-semibold text-[#1F2937]">
-            {metode === "email" ? "Email" : "Nomor HP"} <span className="text-[#0F766E]">*</span>
-          </label>
-          <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#9CA3AF]">
-              <Icon size={18} />
+    <div style={{ marginTop: "2.5rem" }}>
+      <article className={`${styles.ticket} ${styles.ticketForm}`}>
+        <div className={styles.main} style={{ padding: "1.6rem 1.4rem" }}>
+          <p className={styles.when}>Tanpa login</p>
+          <h2 className={`${styles.display} ${styles.stepsTitle}`} style={{ marginTop: "0.45rem" }}>
+            Tiga langkah, selesai
+          </h2>
+          <ol className={styles.steps}>
+            {LANGKAH.map((l, i) => (
+              <li key={l.judul} className={styles.step}>
+                <span className={`${styles.display} ${styles.stepNum}`}>{i + 1}</span>
+                <div>
+                  <p className={styles.stepTitle}>{l.judul}</p>
+                  <p className={styles.stepText}>{l.teks}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className={styles.note}>
+            <ShieldCheck size={18} aria-hidden="true" />
+            <span>
+              Demi keamanan, daftar pesanan tidak bisa dibuka hanya dengan email. Kode OTP yang dikirim ke emailmu dipakai untuk memastikan pesanan ini milikmu.
             </span>
-            <input
-              id="kontak"
-              key={metode}
-              type={metode === "email" ? "email" : "tel"}
-              inputMode={metode === "email" ? "email" : "tel"}
-              autoComplete={metode === "email" ? "email" : "tel"}
-              value={kontak}
-              onChange={(e) => setKontak(e.target.value)}
-              placeholder={metode === "email" ? "Email yang dipakai saat membeli" : "Contoh: 081234567890"}
-              className={inputClass}
-            />
-          </div>
-
-          <label htmlFor="kode" className="mt-4 text-sm font-semibold text-[#1F2937]">
-            Kode Booking <span className="text-[#0F766E]">*</span>
-          </label>
-          <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#9CA3AF]">
-              <Ticket size={18} />
-            </span>
-            <input
-              id="kode"
-              type="text"
-              value={kode}
-              onChange={(e) => setKode(e.target.value.toUpperCase())}
-              placeholder="Contoh: TKT-1A2B3C4D"
-              maxLength={12}
-              autoComplete="off"
-              spellCheck={false}
-              className={`${inputClass} tracking-wider placeholder:tracking-normal`}
-            />
-          </div>
-          <p className="text-xs text-[#6B7280]">Kode booking diawali TKT- dan tertera pada pesanan atau struk pembelianmu.</p>
-
-          {error && (
-            <p role="alert" className="mt-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-6 flex h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-                Memeriksa...
-              </>
-            ) : (
-              <>
-                <Search size={18} aria-hidden="true" />
-                Cek Pesanan
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-[#0F766E]/15 bg-[#ECFDF5] px-4 py-3.5 text-xs leading-relaxed text-[#6B7280]">
-          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[#0F766E]" aria-hidden="true" />
-          <p>
-            Demi keamanan, daftar pesanan tidak bisa dibuka hanya dengan email atau nomor HP. Kode booking dipakai untuk memastikan pesanan ini milikmu.
           </p>
         </div>
 
-        {hasil && (
-          <>
-            <HasilPembelian data={hasil} />
-            <button
-              type="button"
-              onClick={reset}
-              className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-full border-[1.5px] border-[#E5E7EB] text-sm font-semibold text-[#1F2937] transition-colors hover:border-[#0F766E] hover:text-[#0F766E]"
-            >
-              <RotateCcw size={15} aria-hidden="true" />
-              Cek Pesanan Lain
-            </button>
-          </>
-        )}
-      </div>
+        <div className={`${styles.stub} ${styles.stubForm}`}>
+          <div className={styles.stubHead}>
+            <span className={styles.stubTitle}>Cek pesanan</span>
+          </div>
 
-      <p className="mt-6 text-center text-sm text-[#6B7280]">
-        Punya akun?{" "}
-        <Link href="/auth/login" className="font-bold text-[#F59E0B] hover:underline">
-          Masuk
-        </Link>{" "}
-        untuk melihat seluruh histori pembelianmu.
+          {langkah === "email" ? (
+            <form onSubmit={kirimOtp} noValidate className={styles.form}>
+              <label htmlFor="email" className={styles.label}>
+                Email
+              </label>
+              <div className={styles.field}>
+                <Mail size={18} className={styles.fieldIcon} aria-hidden="true" />
+                <input
+                  id="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email yang dipakai saat membeli"
+                  className={styles.input}
+                />
+              </div>
+              <p className={styles.hint}>Kode OTP akan dikirim ke email ini.</p>
+
+              {error && (
+                <p role="alert" className={styles.error}>
+                  {error}
+                </p>
+              )}
+
+              <button type="submit" disabled={loading} className={`${styles.cta} ${styles.ctaBlock} ${styles.submit}`}>
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className={styles.spin} aria-hidden="true" />
+                    Mengirim kode...
+                  </>
+                ) : (
+                  <>
+                    <Send size={18} aria-hidden="true" />
+                    Kirim kode OTP
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={verifikasi} noValidate className={styles.form}>
+              <p className={styles.hint} style={{ marginTop: "0.8rem" }}>
+                {email.trim()}
+              </p>
+
+              <label htmlFor="otp" className={styles.label}>
+                Kode OTP
+              </label>
+              <div className={styles.field}>
+                <KeyRound size={18} className={styles.fieldIcon} aria-hidden="true" />
+                <input
+                  id="otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+                  placeholder="6 digit kode"
+                  maxLength={OTP_LENGTH}
+                  spellCheck={false}
+                  autoFocus
+                  className={`${styles.input} ${styles.inputCode}`}
+                />
+              </div>
+              {info && <p className={styles.hint}>{info}</p>}
+
+              {error && (
+                <p role="alert" className={styles.error}>
+                  {error}
+                </p>
+              )}
+
+              <button type="submit" disabled={loading} className={`${styles.cta} ${styles.ctaBlock} ${styles.submit}`}>
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className={styles.spin} aria-hidden="true" />
+                    Memeriksa...
+                  </>
+                ) : (
+                  <>
+                    <Search size={18} aria-hidden="true" />
+                    Cek pesanan
+                  </>
+                )}
+              </button>
+
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
+                <button
+                  type="button"
+                  onClick={() => void kirimOtp()}
+                  disabled={loading || cooldown > 0}
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                >
+                  {cooldown > 0 ? `Kirim ulang kode (${cooldown} dtk)` : "Kirim ulang kode"}
+                </button>
+                <button type="button" onClick={gantiEmail} disabled={loading} className={`${styles.btn} ${styles.btnGhost}`}>
+                  Ganti email
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </article>
+
+      {hasil && (
+        <>
+          {hasil.length === 0 ? (
+            <p className={styles.below}>Belum ada pesanan yang terhubung dengan email ini.</p>
+          ) : (
+            hasil.map((h) => <HasilPembelian key={h.kode_tiket} data={h} />)
+          )}
+          <div style={{ marginTop: "1.25rem" }}>
+            <button type="button" onClick={reset} className={`${styles.btn} ${styles.btnGhost}`}>
+              <RotateCcw size={15} aria-hidden="true" />
+              Cek pesanan lain
+            </button>
+          </div>
+        </>
+      )}
+
+      <p className={styles.below}>
+        Punya akun? <Link href="/auth/login">Masuk</Link> untuk melihat seluruh histori pembelianmu.
       </p>
     </div>
   );

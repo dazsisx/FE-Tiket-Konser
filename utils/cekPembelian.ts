@@ -1,4 +1,4 @@
-// Pemanggil API publik "cek pembelian" (tanpa login).
+// Pemanggil API publik "cek pembelian" (tanpa login, verifikasi lewat OTP email).
 // Base URL memakai API_BASE_URL dari utils/api.ts, supaya satu aturan untuk semua pemanggilan
 // (NEXT_PUBLIC_API_URL boleh diisi dengan atau tanpa "/api" di belakangnya).
 import { API_BASE_URL } from "./api";
@@ -36,19 +36,19 @@ export interface HasilCekPembelian {
   tiket: TiketCek[];
 }
 
-export interface CekPembelianInput {
-  kode_tiket: string;
+/** Salah satu dari email atau no_telepon. */
+export interface KontakCek {
   email?: string;
   no_telepon?: string;
 }
 
-export async function cekPembelian(input: CekPembelianInput): Promise<HasilCekPembelian> {
+async function post<T>(path: string, body: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE_URL}/pesanan/cek`, {
+    res = await fetch(`${API_BASE_URL}/pesanan/cek/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify(body),
     });
   } catch {
     throw new Error("Tidak dapat terhubung ke server. Coba lagi beberapa saat.");
@@ -58,5 +58,17 @@ export async function cekPembelian(input: CekPembelianInput): Promise<HasilCekPe
   if (!res.ok || !json?.success) {
     throw new Error(json?.message ?? "Terjadi kesalahan. Coba lagi.");
   }
-  return json.data as HasilCekPembelian;
+  return json as T;
+}
+
+/** Langkah 1: minta kode OTP dikirim ke email pembeli. */
+export async function kirimOtpCekPembelian(kontak: KontakCek): Promise<{ berlaku_menit: number }> {
+  const json = await post<{ data: { berlaku_menit: number } }>("kirim-otp", kontak);
+  return json.data;
+}
+
+/** Langkah 2: verifikasi OTP, backend mengembalikan semua pesanan milik kontak tersebut. */
+export async function verifikasiOtpCekPembelian(kontak: KontakCek, otp: string): Promise<HasilCekPembelian[]> {
+  const json = await post<{ data: HasilCekPembelian[] }>("verifikasi", { ...kontak, otp });
+  return json.data;
 }

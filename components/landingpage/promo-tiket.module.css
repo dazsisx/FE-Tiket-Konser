@@ -1,0 +1,173 @@
+.promo {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  min-height: 280px;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, #111827 0%, #1f2937 55%, #0f3d3a 100%);
+  color: #fff;
+}
+
+/* ---------- teks pixel berulang di latar ---------- */
+
+.rows {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 0.75rem 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 15%, transparent 70%);
+  mask-image: linear-gradient(90deg, #000 15%, transparent 70%);
+}
+.row {
+  display: flex;
+  width: max-content;
+  font-family: var(--font-pixel), monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: pre;
+  color: rgba(245, 158, 11, 0.17);
+  animation: slide 30s linear infinite;
+  animation-delay: var(--d, 0s);
+}
+.row[data-rev="true"] { animation-direction: reverse; }
+
+/* ---------- lantai grid ---------- */
+
+.floor {
+  position: absolute;
+  left: -25%;
+  right: -25%;
+  bottom: -8%;
+  z-index: -1;
+  height: 52%;
+  background-image:
+    linear-gradient(rgba(245, 158, 11, 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 158, 11, 0.4) 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(260px) rotateX(62deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent);
+  mask-image: linear-gradient(to top, #000 10%, transparent);
+  animation: gridMove 1.8s linear infinite;
+}
+
+/* ---------- isi ---------- */
+
+.inner {
+  position: relative;
+  display: grid;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem 1.5rem;
+}
+@media (min-width: 640px) {
+  .inner { grid-template-columns: 1.15fr 1fr; padding: 2.25rem 3rem; }
+}
+
+.eyebrow {
+  margin: 0 0 0.9rem;
+  font-family: var(--font-pixel), monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #f59e0b;
+}
+.cursor::after { content: "_"; margin-left: 0.15rem; animation: blink 1s steps(1) infinite; }
+
+.title {
+  margin: 0;
+  font-family: var(--font-display), "Arial Narrow", Impact, sans-serif;
+  font-size: clamp(2.6rem, 6vw, 4.4rem);
+  font-weight: 900;
+  line-height: 0.92;
+  text-transform: uppercase;
+  color: #fff;
+}
+.num { color: #f59e0b; }
+
+.sub { margin: 0.8rem 0 0; font-size: 0.95rem; color: rgba(255, 255, 255, 0.75); }
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 0.6rem;
+  background: #f59e0b;
+  color: #1f2937;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.3s, background 0.3s;
+}
+.cta:hover { background: #fbbf24; transform: translateY(-2px); }
+.cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* ---------- mesin tiket ---------- */
+
+.art { display: none; justify-content: center; align-items: flex-end; height: 260px; }
+@media (min-width: 640px) { .art { display: flex; } }
+.art svg { width: min(100%, 250px); height: auto; overflow: visible; }
+
+.pixelText { font-family: var(--font-pixel), monospace; font-weight: 700; }
+.shadow { fill: rgba(0, 0, 0, 0.35); animation: shadowPulse 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.machine { animation: float 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.ticket { animation: print 4.2s ease-in-out infinite; }
+.blink { animation: blink 1s steps(1) infinite; }
+.spark { animation: spark 2.4s ease-in-out infinite; animation-delay: var(--s, 0s); transform-box: fill-box; transform-origin: center; }
+
+/* ---------- desktop: kotak tegak 3:4 di samping grid Event Terbaru ---------- */
+
+@media (min-width: 1024px) {
+  .promo { aspect-ratio: 3 / 4; min-height: 0; }
+  .rows {
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 65%);
+    mask-image: linear-gradient(180deg, #000 0%, transparent 65%);
+  }
+  .inner { display: block; height: 100%; padding: 1.5rem 1.25rem; }
+  .eyebrow { margin-bottom: 0.6rem; font-size: 0.7rem; }
+  .title { font-size: 2.2rem; }
+  .sub { display: none; }
+  .cta { margin-top: 0.9rem; padding: 0.55rem 1rem; font-size: 0.85rem; }
+  .art {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.25rem;
+    height: auto;
+  }
+  .art svg { width: 190px; }
+}
+
+/* ---------- keyframes ---------- */
+
+@keyframes slide { to { transform: translateX(-50%); } }
+@keyframes gridMove { to { background-position: 0 46px, 0 0; } }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-8px) rotate(1.5deg); }
+}
+@keyframes shadowPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.88); opacity: 0.7; }
+}
+@keyframes print {
+  0% { transform: translateY(-48px); opacity: 1; }
+  45%, 80% { transform: translateY(0); opacity: 1; }
+  95%, 100% { transform: translateY(10px); opacity: 0; }
+}
+@keyframes spark {
+  0%, 100% { opacity: 0.15; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row, .floor, .cursor::after, .shadow, .machine, .ticket, .blink, .spark { animation: none; }
+  .ticket { transform: translateY(0); }
+}

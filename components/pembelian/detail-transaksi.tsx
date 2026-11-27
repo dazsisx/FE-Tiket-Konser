@@ -2,15 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Clock, Download, Loader2, MapPin, Ticket, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock, Download, Loader2, MapPin, Ticket, X } from "lucide-react";
+import styles from "@/components/flyer/flyer.module.css";
 import { fetchMyOrder, formatJam, formatRupiah, formatTanggal, getImageUrl, type PesananRiwayat, type PesananSaya } from "@/utils/api";
 import { statusOf, waktuPesanan } from "@/utils/pesanan";
+import { TONE, TONE_TIKET } from "./tone";
 
-const statusTiket = {
-  aktif: { label: "Aktif", cls: "bg-[#ECFDF5] text-[#0F766E]" },
-  terpakai: { label: "Sudah digunakan", cls: "bg-[#F3F4F6] text-[#6B7280]" },
-  dibatalkan: { label: "Dibatalkan", cls: "bg-red-50 text-red-600" },
-} as const;
+const labelTiket = { aktif: "Aktif", terpakai: "Sudah digunakan", dibatalkan: "Dibatalkan" } as const;
 
 const penjelasan: Record<string, string> = {
   "menunggu-pembayaran": "Pesanan ini belum dibayar. Selesaikan pembayaran agar tiketmu diterbitkan.",
@@ -70,175 +68,139 @@ export default function DetailTransaksi({ order, onClose }: { order: PesananRiwa
   const tiket = detail?.tiket ?? [];
 
   const rows: Array<[string, string]> = [
-    ["Kode Booking", order.kode_tiket ?? "-"],
-    ["Kategori Tiket", order.kategori_tiket?.nama_kelas ?? "-"],
-    ["Jumlah Tiket", `${order.jumlah} Tiket`],
-    ...(harga !== null ? ([["Harga per Tiket", formatRupiah(harga)]] as Array<[string, string]>) : []),
-    ["Tanggal Transaksi", dibuat ? `${formatTanggal(dibuat)}, ${formatJam(dibuat)}` : "-"],
+    ["Kode booking", order.kode_tiket ?? "-"],
+    ["Kategori tiket", order.kategori_tiket?.nama_kelas ?? "-"],
+    ["Jumlah", `${order.jumlah} tiket`],
+    ...(harga !== null ? ([["Harga per tiket", formatRupiah(harga)]] as Array<[string, string]>) : []),
+    ["Transaksi", dibuat ? `${formatTanggal(dibuat)}, ${formatJam(dibuat)}` : "-"],
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6">
-      <button
-        type="button"
-        aria-label="Tutup detail transaksi"
-        tabIndex={-1}
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-[#1F2937]/40 backdrop-blur-sm"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="detail-transaksi-judul"
-        className="relative flex max-h-[92vh] w-full max-w-[600px] flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_30px_80px_rgba(31,41,55,0.30)] sm:rounded-[32px]"
-      >
-        <div className="flex items-center justify-between gap-4 border-b border-[#E5E7EB] px-6 py-4">
-          <h2 id="detail-transaksi-judul" className="text-lg font-extrabold text-[#1F2937]">
-            Detail Transaksi
+    <div className={styles.modalWrap}>
+      <button type="button" aria-label="Tutup detail transaksi" tabIndex={-1} onClick={onClose} className={styles.modalScrim} />
+      <div role="dialog" aria-modal="true" aria-labelledby="detail-transaksi-judul" className={styles.modal}>
+        <div className={styles.modalHead}>
+          <h2 id="detail-transaksi-judul" className={`${styles.display} ${styles.modalTitle}`}>
+            Detail transaksi
           </h2>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Tutup"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#1F2937] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(15,118,110,0.25)]"
-          >
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Tutup" className={styles.modalClose}>
             <X size={18} />
           </button>
         </div>
 
-        <div className="overflow-y-auto px-6 py-6">
-          <div className="flex items-start gap-4">
+        <div className={styles.modalBody}>
+          <div className={styles.modalHero}>
             {poster && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={poster} alt="" className="h-24 w-20 shrink-0 rounded-2xl object-cover" />
+              <img src={poster} alt="" className={styles.modalPoster} />
             )}
-            <div className="min-w-0">
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ${status.badge}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
+            <div style={{ minWidth: 0 }}>
+              <span className={styles.status} data-tone={TONE[status.key]}>
                 {status.label}
               </span>
-              <h3 className="mt-2 text-xl font-extrabold leading-snug text-[#1F2937]">{event?.nama_event ?? "Event tidak tersedia"}</h3>
-              {event?.artis?.nama && <p className="text-sm text-[#6B7280]">{event.artis.nama}</p>}
+              <h3 className={`${styles.display} ${styles.modalEvent}`}>{event?.nama_event ?? "Event tidak tersedia"}</h3>
+              {event?.artis?.nama && <p className={styles.modalArtist}>{event.artis.nama}</p>}
             </div>
           </div>
 
           {event && (
-            <div className="mt-4 flex flex-col gap-1.5 text-sm text-[#6B7280]">
-              <span className="flex items-center gap-2">
-                <CalendarDays size={15} className="shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-                {formatTanggal(event.tanggal)}
-              </span>
-              <span className="flex items-center gap-2">
-                <Clock size={15} className="shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-                {formatJam(event.tanggal)}
-              </span>
-              <span className="flex items-start gap-2">
-                <MapPin size={15} className="mt-0.5 shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-                <span className="font-medium text-[#1F2937]">{event.lokasi}</span>
-              </span>
-            </div>
+            <ul className={styles.meta} style={{ marginTop: "1rem" }}>
+              <li className={styles.metaRow}>
+                <CalendarDays size={15} aria-hidden="true" />
+                <span>{formatTanggal(event.tanggal)}</span>
+              </li>
+              <li className={styles.metaRow}>
+                <Clock size={15} aria-hidden="true" />
+                <span>{formatJam(event.tanggal)}</span>
+              </li>
+              <li className={styles.metaRow}>
+                <MapPin size={15} aria-hidden="true" />
+                <span>{event.lokasi}</span>
+              </li>
+            </ul>
           )}
 
-          <p className="mt-5 rounded-xl bg-[#FFFBF5] px-4 py-3 text-sm leading-relaxed text-[#6B7280]">{penjelasan[status.key]}</p>
+          <p className={styles.modalExplain}>{penjelasan[status.key]}</p>
 
-          <dl className="mt-5 flex flex-col gap-3 text-sm">
+          <dl className={styles.rows} style={{ marginTop: "1.1rem" }}>
             {rows.map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between gap-4">
-                <dt className="text-[#6B7280]">{label}</dt>
-                <dd className="text-right font-semibold text-[#1F2937]">{value}</dd>
+              <div key={label} className={styles.row}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
               </div>
             ))}
-            <div className="flex items-center justify-between border-t border-[#E5E7EB] pt-3">
-              <dt className="font-semibold text-[#1F2937]">Total Pembayaran</dt>
-              <dd className="text-lg font-extrabold text-[#F59E0B]">{formatRupiah(order.total_harga)}</dd>
-            </div>
           </dl>
+          <div className={styles.total}>
+            <span className={styles.totalLabel}>Total pembayaran</span>
+            <span className={`${styles.display} ${styles.totalValue}`}>{formatRupiah(order.total_harga)}</span>
+          </div>
 
           {status.key === "menunggu-pembayaran" && (
-            <Link
-              href={`/pembelian/sukses?order=${order.id}`}
-              className="mt-6 flex h-[52px] items-center justify-center rounded-full bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]"
-            >
-              Lanjutkan Pembayaran
+            <Link href={`/pembelian/sukses?order=${order.id}`} className={`${styles.cta} ${styles.ctaBlock}`} style={{ marginTop: "1.25rem" }}>
+              Lanjutkan pembayaran <ArrowRight size={16} aria-hidden="true" />
             </Link>
           )}
 
           {(status.key === "ditolak" || status.key === "kedaluwarsa") && event?.status === "aktif" && (
-            <Link
-              href={`/pembelian/tiket/${order.event_id}`}
-              className="mt-6 flex h-[52px] items-center justify-center rounded-full bg-[#0F766E] text-sm font-bold text-white shadow-[0_10px_28px_rgba(15,118,110,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#0D9488]"
-            >
-              Pesan Ulang
+            <Link href={`/pembelian/tiket/${order.event_id}`} className={`${styles.cta} ${styles.ctaBlock}`} style={{ marginTop: "1.25rem" }}>
+              Pesan ulang <ArrowRight size={16} aria-hidden="true" />
             </Link>
           )}
 
           {/* ===== Tiket + QR (hanya pesanan lunas) ===== */}
           {status.key === "berhasil" && (
-            <div className="mt-7">
-              <div className="flex items-center gap-3 text-xs font-semibold text-[#9CA3AF]">
-                <span className="h-px flex-1 bg-[#E5E7EB]" />
-                Tiket dan QR
-                <span className="h-px flex-1 bg-[#E5E7EB]" />
-              </div>
+            <div>
+              <p className={styles.qrHead}>Tiket dan QR</p>
 
               {loading ? (
-                <div className="mt-5 flex items-center justify-center gap-2 py-10 text-sm text-[#6B7280]" role="status">
-                  <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+                <div className={styles.modalSpin} role="status">
+                  <Loader2 size={18} className={styles.spin} aria-hidden="true" />
                   Memuat tiket...
                 </div>
               ) : error ? (
-                <p role="alert" className="mt-5 rounded-2xl bg-red-50 px-4 py-6 text-center text-sm text-red-600">
+                <p role="alert" className={styles.error}>
                   {error}
                 </p>
               ) : tiket.length === 0 ? (
-                <p className="mt-5 rounded-2xl border border-[#E5E7EB] px-4 py-10 text-center text-sm text-[#6B7280]">
-                  Tiketmu sedang disiapkan. Buka kembali detail ini beberapa saat lagi.
-                </p>
+                <p className={styles.qrState}>Tiketmu sedang disiapkan. Buka kembali detail ini beberapa saat lagi.</p>
               ) : (
-                <ul className="mt-5 flex flex-col gap-4">
-                  {tiket.map((t) => {
-                    const st = statusTiket[t.status];
-                    return (
-                      <li key={t.nomor_urut} className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-                        <div className="flex items-center justify-between gap-3 text-sm">
-                          <span className="flex items-center gap-2 font-bold text-[#1F2937]">
-                            <Ticket size={16} className="text-[#0F766E]" aria-hidden="true" />
-                            Tiket {t.nomor_urut} dari {order.jumlah}
-                          </span>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
-                        </div>
-                        {t.status === "aktif" && t.qr_code ? (
-                          <>
-                            <div className="mt-3 flex items-center justify-center">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={t.qr_code}
-                                alt={`QR tiket ${t.nomor_urut} dari ${order.jumlah}`}
-                                className="h-56 w-56 max-w-full"
-                              />
-                            </div>
-                            <a
-                              href={t.qr_code}
-                              download={`tiket-${order.kode_tiket ?? order.id}-${t.nomor_urut}.png`}
-                              className="mt-3 flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] py-2.5 text-sm font-semibold text-[#1F2937] transition-colors duration-300 hover:bg-[#FFFBF5]"
-                            >
-                              <Download size={16} aria-hidden="true" />
-                              Unduh QR Tiket {t.nomor_urut}
-                            </a>
-                          </>
-                        ) : (
-                          <p className="py-6 text-center text-sm text-[#6B7280]">
-                            {t.status === "terpakai"
-                              ? `Tiket ini sudah dipakai${
-                                  t.digunakan_pada ? ` pada ${formatTanggal(t.digunakan_pada)}, ${formatJam(t.digunakan_pada)}` : ""
-                                }.`
-                              : "Tiket ini sudah dibatalkan dan tidak dapat digunakan."}
-                          </p>
-                        )}
-                      </li>
-                    );
-                  })}
+                <ul className={styles.qrList} style={{ gridTemplateColumns: "1fr" }}>
+                  {tiket.map((t) => (
+                    <li key={t.nomor_urut} className={styles.qrItem}>
+                      <div className={styles.qrTop}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                          <Ticket size={16} aria-hidden="true" />
+                          Tiket {t.nomor_urut} dari {order.jumlah}
+                        </span>
+                        <span className={styles.status} data-tone={TONE_TIKET[t.status]}>
+                          {labelTiket[t.status]}
+                        </span>
+                      </div>
+                      {t.status === "aktif" && t.qr_code ? (
+                        <>
+                          <div className={styles.qrImgWrap}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={t.qr_code} alt={`QR tiket ${t.nomor_urut} dari ${order.jumlah}`} className={styles.qrImg} />
+                          </div>
+                          <a
+                            href={t.qr_code}
+                            download={`tiket-${order.kode_tiket ?? order.id}-${t.nomor_urut}.png`}
+                            className={`${styles.cta} ${styles.ctaGhost} ${styles.ctaBlock}`}
+                            style={{ marginTop: "0.7rem" }}
+                          >
+                            <Download size={16} aria-hidden="true" />
+                            Unduh QR
+                          </a>
+                        </>
+                      ) : (
+                        <p className={styles.qrNote}>
+                          {t.status === "terpakai"
+                            ? `Tiket ini sudah dipakai${t.digunakan_pada ? ` pada ${formatTanggal(t.digunakan_pada)}, ${formatJam(t.digunakan_pada)}` : ""}.`
+                            : "Tiket ini sudah dibatalkan dan tidak dapat digunakan."}
+                        </p>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
