@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { AlertTriangle, ArrowRight, CalendarDays, Heart, MapPin, RefreshCw, Ticket, UserRound } from "lucide-react";
 import { Outfit } from "next/font/google";
+import BackButton from "@/components/ui/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchWishlist,
@@ -44,7 +45,12 @@ function Shell({ children }: { children: React.ReactNode }) {
     >
       <div className="pointer-events-none absolute -top-32 -right-32 h-[520px] w-[520px] rounded-full bg-[#0F766E] opacity-[0.07] blur-[110px]" />
       <div className="pointer-events-none absolute top-1/3 -left-40 h-[480px] w-[480px] rounded-full bg-[#F59E0B] opacity-[0.07] blur-[110px]" />
-      <div className="relative mx-auto max-w-[1200px] px-5 pt-28 pb-20 sm:px-8 sm:pt-32">{children}</div>
+      <div className="relative mx-auto max-w-[1200px] px-5 pt-28 pb-20 sm:px-8 sm:pt-32">
+        <div className="mb-5">
+          <BackButton fallbackHref="/" />
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

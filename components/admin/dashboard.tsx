@@ -12,6 +12,8 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Music2,
+  ScanLine,
   Ticket,
   Users,
   X,
@@ -26,8 +28,10 @@ import {
 
 const menuItems = [
   { label: "Ringkasan", icon: LayoutDashboard, href: "/admin", active: true },
+  { label: "Artis", icon: Music2, href: "/admin/artists" },
   { label: "Acara & Tiket", icon: CalendarDays, href: "/admin/events" },
   { label: "Pesanan", icon: ClipboardList, href: "/admin/orders" },
+  { label: "Pindai Tiket", icon: ScanLine, href: "/admin/scan" },
 ];
 
 // Status di database: draft | aktif | ditutup | selesai
@@ -130,7 +134,7 @@ export default function AdminDashboard() {
           {error && <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
           {loading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((item) => <div key={item} className="h-32 animate-pulse rounded-2xl bg-white" />)}</div> : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Pendapatan lunas" value={formatRupiah(summary?.total_pendapatan ?? 0)} detail={`${summary?.pesanan_lunas ?? 0} pesanan berhasil`} icon={Ticket} />
+              <StatCard label="Pendapatan lunas" value={formatRupiah(summary?.total_pendapatan ?? 0)} detail={`${summary?.pesanan_lunas ?? 0} pesanan berhasil${summary?.pendapatan_offline ? ` · ${formatRupiah(summary.pendapatan_offline)} dari loket offline` : ""}`} icon={Ticket} />
               <StatCard label="Tiket terjual" value={(summary?.total_tiket_terjual ?? 0).toLocaleString("id-ID")} detail="Dari transaksi lunas" icon={CheckCircle2} />
               <StatCard label="Acara aktif" value={`${summary?.event_buka ?? 0}`} detail={`${summary?.total_event ?? 0} total acara`} icon={CalendarDays} />
               <StatCard label="Perlu diverifikasi" value={`${summary?.pesanan_pending ?? 0}`} detail="Pesanan menunggu review" icon={ClipboardList} />

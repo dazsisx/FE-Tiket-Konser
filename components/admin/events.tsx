@@ -22,13 +22,23 @@ import {
   type KategoriTiket,
 } from "@/utils/api";
 import { LAYOUT_OPTIONS, resolveLayout } from "@/utils/venueLayouts";
+import { AREA_OPTIONS, areaLabel } from "@/components/ui/VenueMap";
+import { KATEGORI } from "@/utils/kategori";
 import { kotaOf, kotaOptions } from "@/utils/kota";
 
-type EventDraft = { nama_event: string; deskripsi: string; tanggal: string; lokasi: string; kota: string; artis_id: string; venue_layout: string };
-type TicketDraft = { nama_kelas: string; harga: string; kuota: string };
+type EventDraft = { nama_event: string; deskripsi: string; tanggal: string; lokasi: string; kota: string; artis_id: string; venue_layout: string; kategori_event: string; status: string };
+type TicketDraft = { nama_kelas: string; harga: string; kuota: string; area: string };
 
-const emptyEvent: EventDraft = { nama_event: "", deskripsi: "", tanggal: "", lokasi: "", kota: "", artis_id: "", venue_layout: "" };
-const emptyTicket: TicketDraft = { nama_kelas: "", harga: "", kuota: "" };
+const emptyEvent: EventDraft = { nama_event: "", deskripsi: "", tanggal: "", lokasi: "", kota: "", artis_id: "", venue_layout: "", kategori_event: "", status: "aktif" };
+const emptyTicket: TicketDraft = { nama_kelas: "", harga: "", kuota: "", area: "" };
+
+// Pilihan status event (nilai = kolom events.status)
+const STATUS_OPTIONS = [
+  { value: "aktif", label: "Dijual" },
+  { value: "ditutup", label: "Ditutup" },
+  { value: "draft", label: "Draft (belum tampil)" },
+  { value: "selesai", label: "Selesai" },
+];
 
 // Status di database: draft | aktif | ditutup | selesai
 const statusMeta: Record<string, { label: string; className: string }> = {
@@ -38,11 +48,18 @@ const statusMeta: Record<string, { label: string; className: string }> = {
   selesai: { label: "Selesai", className: "bg-slate-100 text-slate-600" },
 };
 
+// Jadwal acara selalu WIB (UTC+7), sama dengan halaman User dan aturan penjualan di backend,
+// apa pun zona waktu browser admin.
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 function toDateTimeInput(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 16);
+  return new Date(date.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+function fromDateTimeInput(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ? `${value}:00+07:00` : value;
 }
 
 export default function AdminEvents() {
@@ -133,6 +150,8 @@ export default function AdminEvents() {
       kota: event.kota ?? kotaOf(event) ?? "",
       artis_id: String(event.artis_id),
       venue_layout: event.venue_layout ?? "",
+      kategori_event: event.kategori_event ?? "",
+      status: event.status,
     });
     setPoster(null);
     setEventDialog(true);
@@ -144,7 +163,7 @@ export default function AdminEvents() {
     setSaving(true);
     setError(null);
     const body = new FormData();
-    Object.entries(eventDraft).forEach(([key, value]) => body.append(key, value));
+    Object.entries(eventDraft).forEach(([key, value]) => body.append(key, key === "tanggal" ? fromDateTimeInput(value) : value));
     if (poster) body.append("poster", poster);
 
     try {
@@ -194,7 +213,7 @@ export default function AdminEvents() {
 
   function openEditTicket(ticket: KategoriTiket) {
     setEditingTicket(ticket);
-    setTicketDraft({ nama_kelas: ticket.nama_kelas, harga: String(ticket.harga), kuota: String(ticket.kuota) });
+    setTicketDraft({ nama_kelas: ticket.nama_kelas, harga: String(ticket.harga), kuota: String(ticket.kuota), area: ticket.area ?? "" });
     setTicketDialog(true);
     setError(null);
   }
@@ -209,6 +228,7 @@ export default function AdminEvents() {
         nama_kelas: ticketDraft.nama_kelas,
         harga: Number(ticketDraft.harga),
         kuota: Number(ticketDraft.kuota),
+        area: ticketDraft.area,
       });
       await loadData();
       setTicketDialog(false);
@@ -231,6 +251,11 @@ export default function AdminEvents() {
       setError(err instanceof Error ? err.message : "Kategori tiket gagal dihapus.");
     }
   }
+
+  // Zona yang ada pada denah venue event terpilih; area yang sudah tersimpan tapi tidak ada di denah tetap ditampilkan
+  const selectedLayout = selectedEvent ? resolveLayout(selectedEvent) : null;
+  const layoutAreas = new Set(selectedLayout?.zones.map((zone) => zone.group) ?? []);
+  const areaChoices = AREA_OPTIONS.filter((option) => layoutAreas.has(option.value) || option.value === ticketDraft.area);
 
   if (authLoading || !user || user.role !== "admin") return <main className="min-h-screen bg-[#F7FAF8]" />;
 
@@ -262,7 +287,7 @@ export default function AdminEvents() {
                 const posterUrl = getImageUrl(event.poster);
                 const isSelected = event.id === selectedEvent?.id;
                 const meta = statusMeta[event.status] ?? statusMeta.draft;
-                const canToggleSales = event.status === "aktif" || event.status === "ditutup";
+                const canToggleSales = event.status === "aktif" || event.status === "ditutup" || event.status === "draft";
                 return (
                   <article key={event.id} className={`rounded-lg border bg-white p-4 transition-colors ${isSelected ? "border-[#0F766E] shadow-[0_0_0_1px_#0F766E]" : "border-[#E5E7EB] hover:border-[#A7C7C0]"}`}>
                     <div className="flex gap-3">
@@ -293,13 +318,13 @@ export default function AdminEvents() {
           <div className="mb-4 flex items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#B7791F]">INVENTARIS</p><h3 className="mt-1 text-lg font-bold">Kategori tiket</h3></div><button type="button" disabled={!selectedEvent} onClick={openNewTicket} className="flex items-center gap-1.5 rounded-lg border border-[#B7D3CB] bg-white px-3 py-2 text-sm font-bold text-[#0F766E] hover:bg-[#ECFDF5] disabled:cursor-not-allowed disabled:opacity-50"><CirclePlus size={16} /> Tambah</button></div>
           {selectedEvent ? (
             <div className="overflow-hidden rounded-lg border border-[#E5E7EB] bg-white">
-              <div className="border-b border-[#E5E7EB] bg-[#F4F8F6] px-4 py-3"><p className="truncate text-sm font-bold">{selectedEvent.nama_event}</p><p className="mt-1 text-xs text-[#6B7280]">Pilih acara lain dari daftar untuk mengubah inventaris.</p></div>
+              <div className="border-b border-[#E5E7EB] bg-[#F4F8F6] px-4 py-3"><p className="truncate text-sm font-bold">{selectedEvent.nama_event}</p><p className="mt-1 truncate text-xs text-[#6B7280]">{selectedEvent.lokasi}{kotaOf(selectedEvent) ? `, ${kotaOf(selectedEvent)}` : ""} · Denah {selectedLayout?.name}</p><p className="mt-1 text-xs text-[#6B7280]">Pilih acara lain dari daftar untuk mengubah inventaris.</p></div>
               {selectedEvent.kategori_tiket?.length ? <div className="divide-y divide-[#EEF0EF]">
                 {selectedEvent.kategori_tiket.map((ticket) => {
                   const remaining = ticket.kuota - ticket.terjual;
                   return <div key={ticket.id} className="flex items-center gap-3 px-4 py-4">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#EAF4F0] text-[#0F766E]"><Ticket size={17} /></span>
-                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{ticket.nama_kelas}</p><p className="mt-1 text-xs text-[#6B7280]">{formatRupiah(ticket.harga)} · {ticket.terjual} terjual</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#E7ECE9]"><div className="h-full rounded-full bg-[#0F766E]" style={{ width: `${ticket.kuota ? Math.min(100, (ticket.terjual / ticket.kuota) * 100) : 0}%` }} /></div><p className="mt-1 text-[11px] text-[#6B7280]">Sisa {remaining.toLocaleString("id-ID")} dari {ticket.kuota.toLocaleString("id-ID")}</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{ticket.nama_kelas}</p><p className="mt-1 text-xs text-[#6B7280]">{formatRupiah(ticket.harga)} · {ticket.terjual} terjual · {areaLabel(ticket.area) ? `Area ${areaLabel(ticket.area)}` : "Area otomatis"}</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#E7ECE9]"><div className="h-full rounded-full bg-[#0F766E]" style={{ width: `${ticket.kuota ? Math.min(100, (ticket.terjual / ticket.kuota) * 100) : 0}%` }} /></div><p className="mt-1 text-[11px] text-[#6B7280]">Sisa {remaining.toLocaleString("id-ID")} dari {ticket.kuota.toLocaleString("id-ID")}</p></div>
                     <div className="flex shrink-0"><button type="button" aria-label={`Edit ${ticket.nama_kelas}`} onClick={() => openEditTicket(ticket)} className="rounded-md p-2 text-[#475569] hover:bg-gray-100"><Edit3 size={15} /></button><button type="button" aria-label={`Hapus ${ticket.nama_kelas}`} onClick={() => void removeTicket(ticket)} className="rounded-md p-2 text-[#B91C1C] hover:bg-red-50"><Trash2 size={15} /></button></div>
                   </div>;
                 })}
@@ -314,11 +339,13 @@ export default function AdminEvents() {
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E5E7EB] bg-white px-5 py-4"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#B7791F]">ACARA</p><h3 className="mt-1 text-lg font-bold">{editingEvent ? "Edit acara" : "Buat acara"}</h3></div><button type="button" aria-label="Tutup" onClick={() => setEventDialog(false)} className="rounded-md p-2 hover:bg-gray-100"><X size={18} /></button></div>
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <label className="sm:col-span-2 text-sm font-semibold">Nama acara<input required value={eventDraft.nama_event} onChange={(event) => setEventDraft({ ...eventDraft, nama_event: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
-            <label className="text-sm font-semibold">Tanggal dan waktu<input required type="datetime-local" value={eventDraft.tanggal} onChange={(event) => setEventDraft({ ...eventDraft, tanggal: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
+            <label className="text-sm font-semibold">Tanggal dan waktu (WIB)<input required type="datetime-local" value={eventDraft.tanggal} onChange={(event) => setEventDraft({ ...eventDraft, tanggal: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="text-sm font-semibold">Artis<select required value={eventDraft.artis_id} onChange={(event) => setEventDraft({ ...eventDraft, artis_id: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]"><option value="">Pilih artis</option>{artists.map((artist) => <option key={artist.id} value={artist.id}>{artist.nama}</option>)}</select>{artists.length === 0 && <span className="mt-1 block text-xs font-normal text-amber-700">Tambahkan data artis terlebih dahulu.</span>}</label>
             <label className="text-sm font-semibold">Lokasi<input required placeholder="Nama venue" value={eventDraft.lokasi} onChange={(event) => setEventDraft({ ...eventDraft, lokasi: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="text-sm font-semibold">Kota<input required list="daftar-kota" placeholder="Contoh: Jakarta" maxLength={80} value={eventDraft.kota} onChange={(event) => setEventDraft({ ...eventDraft, kota: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /><datalist id="daftar-kota">{kotaOptions(events).map((option) => <option key={option.slug} value={option.label} />)}</datalist><span className="mt-1 block text-xs font-normal text-[#6B7280]">Dipakai filter lokasi di navbar. Pilih dari daftar supaya penulisannya seragam.</span></label>
             <label className="sm:col-span-2 text-sm font-semibold">Denah venue<select value={eventDraft.venue_layout} onChange={(event) => setEventDraft({ ...eventDraft, venue_layout: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]"><option value="">Otomatis dari lokasi ({resolveLayout({ lokasi: eventDraft.lokasi }).name})</option>{LAYOUT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span className="mt-1 block text-xs font-normal text-[#6B7280]">Menentukan bentuk denah zona di halaman pembelian tiket.</span></label>
+            <label className="text-sm font-semibold">Kategori acara<select value={eventDraft.kategori_event} onChange={(event) => setEventDraft({ ...eventDraft, kategori_event: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]"><option value="">Belum dikategorikan</option>{KATEGORI.map((item) => <option key={item.slug} value={item.label}>{item.label}</option>)}</select><span className="mt-1 block text-xs font-normal text-[#6B7280]">Menentukan halaman kategori tempat acara tampil.</span></label>
+            <label className="text-sm font-semibold">Status penjualan<select value={eventDraft.status} onChange={(event) => setEventDraft({ ...eventDraft, status: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]">{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span className="mt-1 block text-xs font-normal text-[#6B7280]">Hanya status Dijual yang bisa dibeli, online maupun offline.</span></label>
             <label className="sm:col-span-2 text-sm font-semibold">Deskripsi<textarea rows={4} value={eventDraft.deskripsi} onChange={(event) => setEventDraft({ ...eventDraft, deskripsi: event.target.value })} className="mt-1.5 w-full resize-y rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-[#B7C8BF] p-3 text-sm text-[#475569]"><span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#EAF4F0] text-[#0F766E]"><ImagePlus size={18} /></span><span className="min-w-0 flex-1"><span className="block font-semibold">Poster acara</span><span className="block truncate text-xs text-[#6B7280]">{poster?.name ?? "PNG, JPG, WEBP hingga 5 MB"}</span></span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => setPoster(event.target.files?.[0] ?? null)} className="sr-only" /></label>
             {error && <p role="alert" className="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
@@ -334,6 +361,7 @@ export default function AdminEvents() {
             <label className="block text-sm font-semibold">Nama kelas<input required value={ticketDraft.nama_kelas} onChange={(event) => setTicketDraft({ ...ticketDraft, nama_kelas: event.target.value })} placeholder="Contoh: Festival" className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="block text-sm font-semibold">Harga<input required type="number" min="0" step="1000" value={ticketDraft.harga} onChange={(event) => setTicketDraft({ ...ticketDraft, harga: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" /></label>
             <label className="block text-sm font-semibold">Kuota<input required type="number" min={editingTicket?.terjual ?? 1} step="1" value={ticketDraft.kuota} onChange={(event) => setTicketDraft({ ...ticketDraft, kuota: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]" />{editingTicket && <span className="mt-1 block text-xs font-normal text-[#6B7280]">Minimal kuota {editingTicket.terjual}, sesuai jumlah tiket terjual.</span>}</label>
+            <label className="block text-sm font-semibold">Area di denah<select value={ticketDraft.area} onChange={(event) => setTicketDraft({ ...ticketDraft, area: event.target.value })} className="mt-1.5 w-full rounded-md border border-[#D8DEDA] bg-white px-3 py-2.5 font-normal outline-none focus:border-[#0F766E]"><option value="">Otomatis dari nama kelas</option>{areaChoices.map((option) => <option key={option.value} value={option.value}>{option.label}{layoutAreas.has(option.value) ? "" : " (tidak ada di denah ini)"}</option>)}</select><span className="mt-1 block text-xs font-normal text-[#6B7280]">Zona tempat kelas ini tampil di denah {selectedLayout?.name}. Satu area untuk satu kelas.</span></label>
             {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           </div>
           <div className="flex justify-end gap-2 border-t border-[#E5E7EB] px-5 py-4"><button type="button" onClick={() => setTicketDialog(false)} className="rounded-md px-4 py-2.5 text-sm font-semibold text-[#475569] hover:bg-gray-100">Batal</button><button type="submit" disabled={saving} className="rounded-md bg-[#0F766E] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0D625B] disabled:opacity-60">{saving ? "Menyimpan..." : "Simpan tiket"}</button></div>

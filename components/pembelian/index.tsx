@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { History, Receipt } from "lucide-react";
 import { Outfit } from "next/font/google";
+import BackButton from "@/components/ui/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import GuestLookup from "./guest-lookup";
 import RiwayatSaya from "./riwayat";
@@ -31,6 +32,9 @@ export default function HistoriPembelian() {
       <div className="pointer-events-none absolute top-1/3 -left-40 h-[480px] w-[480px] rounded-full bg-[#F59E0B] opacity-[0.07] blur-[110px]" />
 
       <div className="relative mx-auto max-w-[1000px] px-5 pt-28 pb-20 sm:px-8 sm:pt-32">
+        <div className="mb-5">
+          <BackButton fallbackHref="/" />
+        </div>
         <header className={`mb-8 sm:mb-10 ${!isLoading && !user ? "text-center" : ""}`}>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-semibold text-[#0F766E]">
             <History size={13} aria-hidden="true" />

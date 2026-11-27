@@ -49,6 +49,17 @@ const GROUPS: {
   { key: "festival", title: "FESTIVAL",  match: ["festival", "general", "reguler", "regular", "umum", "standing"], fill: "#0F766E", text: "#FFFFFF", pattern: "dots" },
 ];
 
+/** Pilihan area untuk form admin: <option value={value}>{label}</option>. Key sama dengan GROUPS. */
+export const AREA_OPTIONS = [
+  { value: "pit", label: "Front Pit" },
+  { value: "festival", label: "Festival" },
+  { value: "sayap", label: "Tribune / Sayap" },
+  { value: "lounge", label: "Lounge" },
+  { value: "balkon", label: "Balkon" },
+] as const;
+
+export const areaLabel = (value?: string | null) => AREA_OPTIONS.find((option) => option.value === value)?.label ?? null;
+
 const INK = "#1F2937";
 const MUTED = "#6B7280";
 
@@ -90,10 +101,17 @@ export default function VenueMap({ layout, tiers, selected, onSelect, saleOpen =
   // Grup zona yang benar-benar ada di layout ini
   const layoutGroups = new Set(layout.zones.map((z) => z.group));
 
-  // 1) Tiap grup zona mengambil kategori pertama yang namanya cocok.
+  // 0) Kategori yang area-nya diatur admin (kolom `area`) mengklaim zonanya lebih dulu.
+  //    Area yang tidak ada di denah ini diperlakukan seperti kosong (jatuh ke langkah 1).
   const groupTier = new Map<string, KategoriTiket>();
-  const leftovers: KategoriTiket[] = [];
+  const auto: KategoriTiket[] = [];
   for (const t of tiers) {
+    if (t.area && layoutGroups.has(t.area) && !groupTier.has(t.area)) groupTier.set(t.area, t);
+    else auto.push(t);
+  }
+  // 1) Sisanya: tiap grup zona mengambil kategori pertama yang namanya cocok.
+  const leftovers: KategoriTiket[] = [];
+  for (const t of auto) {
     const name = t.nama_kelas.toLowerCase();
     const g = GROUPS.find((x) => x.match.some((m) => name.includes(m)));
     if (g && layoutGroups.has(g.key) && !groupTier.has(g.key)) groupTier.set(g.key, t);

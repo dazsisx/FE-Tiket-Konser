@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { MapPin, Printer } from "lucide-react";
+import { areaLabel } from "@/components/ui/VenueMap";
 import { formatRupiah, formatTanggal, type PesananOffline } from "@/utils/api";
 import { buyerName, formatDateTime, orderDate } from "./format";
 
@@ -24,22 +25,29 @@ export default function Receipt({ order }: { order: PesananOffline }) {
       </div>
 
       <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-start">
-        <div className="flex flex-col items-center">
-          {order.qr_code ? (
-            <Image src={order.qr_code} alt={`QR tiket ${order.kode_tiket ?? ""}`} width={176} height={176} unoptimized className="h-44 w-44 rounded-xl border border-[#E5E7EB]" />
-          ) : (
-            <div className="flex h-44 w-44 items-center justify-center rounded-xl border border-dashed border-[#E5E7EB] text-xs text-[#9CA3AF]">QR tidak tersedia</div>
-          )}
-          <p className="mt-2 font-mono text-sm font-bold tracking-wider">{order.kode_tiket ?? "-"}</p>
+        {/* Satu QR unik per lembar tiket (BE: `tiket`); `qr_code` di pesanan adalah field lama yang tidak lagi diisi */}
+        <div className="flex flex-wrap justify-center gap-4">
+          {(order.tiket?.length ? order.tiket : [{ nomor_urut: 1, kode: order.kode_tiket ?? undefined, status: "aktif" as const, digunakan_pada: null, qr_code: order.qr_code }]).map((tiket) => (
+            <div key={tiket.nomor_urut} className="flex flex-col items-center">
+              {tiket.qr_code ? (
+                <Image src={tiket.qr_code} alt={`QR tiket ${tiket.nomor_urut}`} width={176} height={176} unoptimized className="h-44 w-44 rounded-xl border border-[#E5E7EB]" />
+              ) : (
+                <div className="flex h-44 w-44 items-center justify-center rounded-xl border border-dashed border-[#E5E7EB] px-3 text-center text-xs text-[#9CA3AF]">{tiket.status === "terpakai" ? "Tiket sudah digunakan" : tiket.status === "dibatalkan" ? "Tiket dibatalkan" : "QR tidak tersedia"}</div>
+              )}
+              <p className="mt-2 font-mono text-sm font-bold tracking-wider">{tiket.kode ?? order.kode_tiket ?? "-"}</p>
+              {(order.tiket?.length ?? 0) > 1 && <p className="text-xs text-[#6B7280]">Tiket {tiket.nomor_urut} dari {order.jumlah}</p>}
+            </div>
+          ))}
         </div>
 
         <dl className="grid w-full flex-1 grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          <dt className="text-[#6B7280]">Kode booking</dt><dd className="font-mono font-semibold">{order.kode_tiket ?? "-"}</dd>
           <dt className="text-[#6B7280]">No. transaksi</dt><dd className="font-semibold">#{order.id}</dd>
           <dt className="text-[#6B7280]">Waktu</dt><dd className="font-semibold">{formatDateTime(orderDate(order))}</dd>
           <dt className="text-[#6B7280]">Pembeli</dt><dd className="font-semibold">{buyerName(order)}</dd>
           {phone && (<><dt className="text-[#6B7280]">Telepon</dt><dd className="font-semibold">{phone}</dd></>)}
           {email && (<><dt className="text-[#6B7280]">Email</dt><dd className="break-all font-semibold">{email}</dd></>)}
-          <dt className="text-[#6B7280]">Kategori</dt><dd className="font-semibold">{order.kategori_tiket?.nama_kelas ?? "-"}</dd>
+          <dt className="text-[#6B7280]">Kategori</dt><dd className="font-semibold">{order.kategori_tiket?.nama_kelas ?? "-"}{areaLabel(order.kategori_tiket?.area) ? ` · ${areaLabel(order.kategori_tiket?.area)}` : ""}</dd>
           <dt className="text-[#6B7280]">Jumlah</dt><dd className="font-semibold">{order.jumlah} tiket</dd>
           <dt className="text-[#6B7280]">Total</dt><dd className="text-base font-bold text-[#0F766E]">{formatRupiah(order.total_harga)}</dd>
           {order.petugas && (<><dt className="text-[#6B7280]">Petugas</dt><dd className="font-semibold">{order.petugas.nama}</dd></>)}

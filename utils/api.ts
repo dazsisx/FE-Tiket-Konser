@@ -30,6 +30,8 @@ export type KategoriTiket = {
   kuota: number;
   terjual: number;
   sisa_kuota?: number; // cuma ada di response GET /event/:id
+  /** Zona pada denah venue: lounge | pit | balkon | sayap | festival. Kosong = ditebak dari kata kunci nama_kelas. */
+  area?: string | null;
 };
 
 export type PesananAdmin = {
@@ -42,10 +44,15 @@ export type PesananAdmin = {
   status_bayar: "pending" | "lunas" | "ditolak" | "kadaluarsa";
   bukti_bayar: string | null;
   kode_tiket: string | null;
+  // Sequelize (underscored: true) mengirim createdAt; created_at dijaga sebagai cadangan.
+  createdAt?: string;
   created_at?: string;
-  user?: { id: number; nama: string; email: string; no_telepon?: string | null };
-  event?: { id: number; nama_event: string; tanggal: string };
-  kategori_tiket?: { nama_kelas: string; harga: string };
+  order_type?: "online" | "offline";
+  user?: { id: number | null; nama: string | null; email: string | null; no_telepon?: string | null };
+  event?: { id: number; nama_event: string; tanggal: string; lokasi?: string };
+  kategori_tiket?: { nama_kelas: string; harga: string; area?: string | null };
+  /** Petugas loket yang mencatat transaksi offline (null untuk pesanan online). */
+  petugas?: { id: number; nama: string } | null;
 };
 
 export type EventItem = {
@@ -80,6 +87,8 @@ export type AdminDashboard = {
     pesanan_ditolak: number;
     total_tiket_terjual: number;
     total_pendapatan: number;
+    total_pesanan_offline?: number;
+    pendapatan_offline?: number;
   };
   top_event: Array<EventItem & {
     kategori_tiket?: Array<Pick<KategoriTiket, "nama_kelas" | "kuota" | "terjual">>;
@@ -126,7 +135,7 @@ export type PesananOffline = {
   created_at?: string;
   user?: { id: number | null; nama: string | null; email: string | null; no_telepon?: string | null };
   event?: { id: number; nama_event: string; tanggal: string; lokasi: string };
-  kategori_tiket?: { id: number; nama_kelas: string; harga: string };
+  kategori_tiket?: { id: number; nama_kelas: string; harga: string; area?: string | null };
   petugas?: { id: number; nama: string } | null;
 };
 
@@ -253,7 +262,7 @@ export async function setAdminEventStatus(id: number, status: "buka" | "tutup"):
 export async function saveTicketCategory(
   eventId: number,
   categoryId: number | null,
-  payload: { nama_kelas: string; harga: number; kuota: number }
+  payload: { nama_kelas: string; harga: number; kuota: number; area?: string }
 ): Promise<KategoriTiket> {
   const path = categoryId === null ? "/kategori-tiket" : `/kategori-tiket/${categoryId}`;
   const method = categoryId === null ? "POST" : "PUT";
@@ -306,6 +315,12 @@ export async function fetchAllOfflineOrders(): Promise<PesananOffline[]> {
     page += 1;
   } while (byId.size < total && page <= 50);
   return Array.from(byId.values());
+}
+
+/** GET /api/offline/pesanan/:id — detail transaksi, termasuk tiket per lembar beserta QR-nya. */
+export async function fetchOfflineOrder(id: number): Promise<PesananOffline> {
+  const res = await apiFetch<ApiItemResponse<PesananOffline>>(`/offline/pesanan/${id}`);
+  return res.data;
 }
 
 /** POST /api/offline/pesanan — langsung tercatat lunas, stok dikurangi di backend. */

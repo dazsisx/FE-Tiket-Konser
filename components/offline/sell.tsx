@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, Minus, Plus, RefreshCw, X } from "lucide-react";
 import OfflineShell from "./OfflineShell";
+import { areaLabel } from "@/components/ui/VenueMap";
 import Receipt from "./Receipt";
 import { MAX_TIKET } from "./config";
+import { isEventOnSale } from "./format";
 import { useOfflineGuard } from "./useOfflineGuard";
 import {
   createOfflineOrder,
@@ -37,8 +39,8 @@ export default function OfflineSell() {
   const loadEvents = useCallback(async () => {
     try {
       const list = await fetchEvents();
-      // Hanya event berstatus "aktif" yang bisa dijual (backend juga menolak selain itu).
-      setEvents(list.filter((event) => (event.status as string) === "aktif"));
+      // Hanya event berstatus "aktif" dan belum lewat hari acara yang bisa dijual (backend juga menolak selain itu).
+      setEvents(list.filter((event) => isEventOnSale(event)));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Acara gagal dimuat.");
@@ -52,7 +54,8 @@ export default function OfflineSell() {
   }, [ready, loadEvents]);
 
   const event = events.find((item) => item.id === eventId) ?? null;
-  const categories = event?.kategori_tiket ?? [];
+  // Urut harga naik, sama seperti daftar kelas di halaman pembelian User
+  const categories = [...(event?.kategori_tiket ?? [])].sort((a, b) => Number(a.harga) - Number(b.harga));
   const category = categories.find((item) => item.id === categoryId) ?? null;
   const sisa = category ? Math.max(category.kuota - category.terjual, 0) : 0;
   const maxQty = Math.min(MAX_TIKET, sisa);
@@ -140,7 +143,7 @@ export default function OfflineSell() {
                     return (
                       <button key={item.id} type="button" aria-pressed={selected} onClick={() => { setEventId(item.id); setCategoryId(null); setQty(1); setFormError(null); }} className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-[#0F766E] bg-[#ECFDF5]" : "border-[#E5E7EB] hover:border-[#0F766E]"}`}>
                         <p className="text-sm font-bold">{item.nama_event}</p>
-                        <p className="mt-1 text-xs text-[#6B7280]">{item.lokasi}</p>
+                        <p className="mt-1 text-xs text-[#6B7280]">{item.lokasi}{item.kota ? `, ${item.kota}` : ""}</p>
                         <p className="mt-1 text-xs text-[#6B7280]">{formatTanggal(item.tanggal)}</p>
                       </button>
                     );
@@ -159,7 +162,7 @@ export default function OfflineSell() {
                       const selected = item.id === categoryId;
                       return (
                         <button key={item.id} type="button" disabled={left < 1} aria-pressed={selected} onClick={() => { setCategoryId(item.id); setQty(1); setFormError(null); }} className={`flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${selected ? "border-[#0F766E] bg-[#ECFDF5]" : "border-[#E5E7EB] hover:border-[#0F766E]"}`}>
-                          <div><p className="text-sm font-bold">{item.nama_kelas}</p><p className="mt-1 text-xs text-[#6B7280]">{left > 0 ? `Sisa ${left.toLocaleString("id-ID")} dari ${item.kuota.toLocaleString("id-ID")}` : "Habis"}</p></div>
+                          <div><p className="text-sm font-bold">{item.nama_kelas}</p><p className="mt-1 text-xs text-[#6B7280]">{areaLabel(item.area) ? `${areaLabel(item.area)} · ` : ""}{left > 0 ? `Sisa ${left.toLocaleString("id-ID")} dari ${item.kuota.toLocaleString("id-ID")}` : "Habis"}</p></div>
                           <p className="text-sm font-bold text-[#0F766E]">{formatRupiah(item.harga)}</p>
                         </button>
                       );
@@ -194,6 +197,7 @@ export default function OfflineSell() {
               <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                 <dt className="text-[#6B7280]">Acara</dt><dd className="text-right font-semibold">{event.nama_event}</dd>
                 <dt className="text-[#6B7280]">Kategori</dt><dd className="text-right font-semibold">{category.nama_kelas}</dd>
+                {areaLabel(category.area) && (<><dt className="text-[#6B7280]">Area</dt><dd className="text-right font-semibold">{areaLabel(category.area)}</dd></>)}
                 <dt className="text-[#6B7280]">Harga</dt><dd className="text-right font-semibold">{formatRupiah(category.harga)}</dd>
                 <dt className="text-[#6B7280]">Jumlah</dt><dd className="text-right font-semibold">{jumlah} tiket</dd>
                 <dt className="text-[#6B7280]">Pembeli</dt><dd className="text-right font-semibold">{nama.trim() || "-"}</dd>

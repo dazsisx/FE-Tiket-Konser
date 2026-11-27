@@ -7,7 +7,7 @@ import { ArrowUpRight, CalendarDays, CheckCircle2, ClipboardList, Receipt, Ticke
 import OfflineShell from "./OfflineShell";
 import { OFFLINE_BASE } from "./config";
 import { useOfflineGuard } from "./useOfflineGuard";
-import { buyerName, formatDateTime, orderDate } from "./format";
+import { buyerName, formatDateTime, isEventOnSale, orderDate } from "./format";
 import {
   fetchEvents,
   fetchOfflineDashboard,
@@ -47,8 +47,8 @@ export default function OfflineDashboardPage() {
       .then(([dash, eventList]) => {
         if (cancelled) return;
         setDashboard(dash);
-        // Status event di database: draft | aktif | ditutup | selesai. Hanya "aktif" yang bisa dijual.
-        setEvents(eventList.filter((event) => (event.status as string) === "aktif"));
+        // Hanya event berstatus "aktif" dan belum lewat hari acara yang bisa dijual (sama dengan aturan backend).
+        setEvents(eventList.filter((event) => isEventOnSale(event)));
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Dashboard gagal dimuat.");

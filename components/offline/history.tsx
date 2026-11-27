@@ -7,7 +7,7 @@ import Receipt from "./Receipt";
 import { useOfflineGuard } from "./useOfflineGuard";
 import { useOfflineOrders } from "./useOfflineOrders";
 import { buyerName, formatDateTime, orderDate, wibDateKey } from "./format";
-import { formatRupiah, type PesananOffline } from "@/utils/api";
+import { fetchOfflineOrder, formatRupiah, type PesananOffline } from "@/utils/api";
 
 const PAGE_SIZE = 10;
 
@@ -35,6 +35,17 @@ export default function OfflineHistory() {
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<PesananOffline | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Daftar transaksi tidak memuat tiket per lembar; ambil detailnya (kode + QR) saat dibuka.
+  // Data daftar langsung ditampilkan dulu, lalu dilengkapi begitu detail tiba.
+  function openDetail(order: PesananOffline) {
+    setDetail(order);
+    setDetailError(null);
+    fetchOfflineOrder(order.id)
+      .then((full) => setDetail((current) => (current?.id === order.id ? full : current)))
+      .catch((err) => setDetailError(err instanceof Error ? err.message : "Detail tiket gagal dimuat."));
+  }
 
   const eventOptions = useMemo(() => {
     const map = new Map<number, string>();
@@ -101,7 +112,7 @@ export default function OfflineHistory() {
                         <td className="px-4 py-4"><p className="max-w-52 truncate text-sm font-semibold">{order.event?.nama_event ?? "Acara"}</p><p className="mt-1 text-xs text-[#6B7280]">{order.kategori_tiket?.nama_kelas ?? "Kategori"} · {order.jumlah} tiket</p></td>
                         <td className="px-4 py-4 text-sm font-bold">{formatRupiah(order.total_harga)}</td>
                         <td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${statusStyle[order.status_bayar]}`}>{statusLabel[order.status_bayar]}</span></td>
-                        <td className="px-5 py-4 text-right"><button type="button" onClick={() => setDetail(order)} className="rounded-md border border-[#D8DEDA] px-2.5 py-2 text-xs font-bold hover:bg-[#F4F8F6]">Detail</button></td>
+                        <td className="px-5 py-4 text-right"><button type="button" onClick={() => openDetail(order)} className="rounded-md border border-[#D8DEDA] px-2.5 py-2 text-xs font-bold hover:bg-[#F4F8F6]">Detail</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -125,6 +136,7 @@ export default function OfflineHistory() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#1F2937]/40 p-4 print:static print:block print:overflow-visible print:bg-white print:p-0" role="dialog" aria-modal="true" aria-label={`Detail transaksi ${detail.id}`}>
           <div className="my-6 w-full max-w-2xl print:my-0">
             <button type="button" aria-label="Tutup detail" onClick={() => setDetail(null)} className="mb-2 ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-white shadow print:hidden"><X size={18} /></button>
+            {detailError && <div role="alert" className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 print:hidden">{detailError}</div>}
             <Receipt order={detail} />
           </div>
         </div>
