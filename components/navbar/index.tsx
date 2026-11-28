@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Big_Shoulders } from "next/font/google";
-import { Check, ChevronDown, Heart, History, LayoutDashboard, LogOut, Search, User } from "lucide-react";
+import { Check, ChevronDown, Heart, History, LayoutDashboard, LogOut, Search,} from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { KATEGORI } from "@/utils/kategori";
@@ -263,40 +263,24 @@ export default function Navbar() {
                       <p className="truncate text-xs text-[#9CA3AF]">Lihat profil kamu</p>
                     </div>
                   </Link>
-                  <Link
+                            <Link
                     href="/profile"
                     onClick={() => setPanel(null)}
-                    className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[#1F2937] transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E]"
+                    className="mb-1 flex items-center gap-3 rounded-xl border-b border-[#E5E7EB] px-3 py-3 transition-colors hover:bg-[#ECFDF5]"
                   >
-                    <User size={16} />
-                    Profil Saya
+                    {/* ...avatar + nama + "Lihat profil kamu" (tidak diubah)... */}
                   </Link>
-                  {user.role === "pelanggan" && (
-                    <>
-                      <Link
-                        href="/wishlist"
-                        onClick={() => setPanel(null)}
-                        aria-current={wishlistActive ? "page" : undefined}
-                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
-                          wishlistActive ? "bg-[#ECFDF5] text-[#0F766E]" : "text-[#1F2937]"
-                        }`}
-                      >
-                        <Heart size={16} />
-                        Wishlist
-                      </Link>
-                      <Link
-                        href="/pembelian"
-                        onClick={() => setPanel(null)}
-                        aria-current={historiActive ? "page" : undefined}
-                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E] ${
-                          historiActive ? "bg-[#ECFDF5] text-[#0F766E]" : "text-[#1F2937]"
-                        }`}
-                      >
-                        <History size={16} />
-                        Histori Pembelian
-                      </Link>
-                    </>
+                  {user.role === "admin" && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setPanel(null)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[#1F2937] transition-colors hover:bg-[#ECFDF5] hover:text-[#0F766E]"
+                    >
+                      <LayoutDashboard size={16} />
+                      Dashboard Admin
+                    </Link>
                   )}
+
                   {user.role === "admin" && (
                     <Link
                       href="/admin"

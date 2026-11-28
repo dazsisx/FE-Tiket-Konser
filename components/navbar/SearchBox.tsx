@@ -349,13 +349,13 @@ export default function SearchBox({
             placeholder={isOpen ? "Ketik nama acara, artis, atau kota" : ""}
             className="h-full w-full bg-transparent text-sm text-[#1F2937] outline-none placeholder:text-[#9B9483]"
           />
-          {!isOpen && !value && (
+                   {!isOpen && !value && (
             <span
               key={phIndex % placeholders.length}
               aria-hidden="true"
-              className="nav-ph pointer-events-none absolute inset-y-0 left-0 flex max-w-full items-center truncate pr-2 text-sm text-[#8B8472]"
+              className="nav-ph pointer-events-none absolute inset-0 flex items-center pr-2 text-sm text-[#8B8472]"
             >
-              {placeholder}
+              <span className="min-w-0 truncate">{placeholder}</span>
             </span>
           )}
         </div>

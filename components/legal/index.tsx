@@ -22,16 +22,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-type LegalVariant = "terms" | "privacy";
+export type LegalVariant = "terms" | "privacy"; // <-- export
 
-type LegalSection = {
+export type LegalSection = { // <-- export
   icon: LucideIcon;
   title: string;
   summary: string;
   content: string | string[];
 };
 
-const TERMS_SECTIONS: LegalSection[] = [
+export const TERMS_SECTIONS: LegalSection[] = [ // <-- export
   {
     icon: Compass,
     title: "Menggunakan DRStar",
@@ -83,7 +83,7 @@ const TERMS_SECTIONS: LegalSection[] = [
   },
 ];
 
-const PRIVACY_SECTIONS: LegalSection[] = [
+export const PRIVACY_SECTIONS: LegalSection[] = [ // <-- export
   {
     icon: Database,
     title: "Informasi yang Kami Kumpulkan",
@@ -140,7 +140,7 @@ const PRIVACY_SECTIONS: LegalSection[] = [
   },
 ];
 
-const COPY: Record<
+export const COPY: Record< // <-- export
   LegalVariant,
   { label: string; title: string; description: string }
 > = {
